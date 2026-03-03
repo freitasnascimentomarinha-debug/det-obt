@@ -1,0 +1,8 @@
+{
+  "name": "Detetive Obtenção",
+  "description": "Uma base de apoio a obtenção - Sistema colaborativo de identificação técnica para a Marinha do Brasil.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
