@@ -5,12 +5,18 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { WebSocketServer, WebSocket } from "ws";
 import { createServer } from "http";
+import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const db = new Database("sitec.db");
 db.pragma('foreign_keys = ON');
+
+// Supabase Client for migration
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 // Initialize Database
 db.exec(`
@@ -245,6 +251,68 @@ async function startServer() {
   const wss = new WebSocketServer({ server });
 
   app.use(express.json({ limit: '50mb' }));
+
+  app.get("/api/admin/migrate-to-supabase", async (req, res) => {
+    if (!supabase) {
+      return res.status(500).json({ error: "Supabase não configurado nos secrets." });
+    }
+
+    const results: any = {};
+
+    const migrate = async (tableName: string, sqliteTable: string, transform?: (row: any) => any) => {
+      try {
+        const rows = db.prepare(`SELECT * FROM ${sqliteTable}`).all();
+        if (rows.length === 0) {
+          results[tableName] = "Vazia";
+          return;
+        }
+        const transformed = transform ? rows.map(transform) : rows;
+        
+        // Delete existing to avoid conflicts during migration
+        await supabase.from(tableName).delete().neq('id', -1); 
+
+        const { error } = await supabase.from(tableName).insert(transformed);
+        if (error) throw error;
+        results[tableName] = `Sucesso (${rows.length} registros)`;
+      } catch (err: any) {
+        results[tableName] = `Erro: ${err.message}`;
+      }
+    };
+
+    await migrate('usuarios', 'usuarios', (r) => ({
+      ...r,
+      ativo: r.ativo === 1
+    }));
+    await migrate('consultas', 'consultas');
+    await migrate('comentarios', 'comentarios');
+    await migrate('empresas', 'empresas', (r) => ({
+      ...r,
+      indicado_por_id: r.indicado_por_id
+    }));
+    await migrate('curtidas_consultas', 'curtidas_consultas', (r) => {
+      const { id, ...rest } = r;
+      return rest;
+    });
+    await migrate('curtidas_comentarios', 'curtidas_comentarios', (r) => {
+      const { id, ...rest } = r;
+      return rest;
+    });
+    await migrate('validacoes_empresas', 'validacoes_empresas', (r) => {
+      const { id, ...rest } = r;
+      return rest;
+    });
+    await migrate('notificacoes', 'notificacoes', (r) => ({
+      ...r,
+      lida: r.lida === 1
+    }));
+    await migrate('amizades', 'amizades', (r) => {
+      const { id, ...rest } = r;
+      return rest;
+    });
+    await migrate('auditoria', 'auditoria');
+
+    res.json(results);
+  });
 
   const PORT = 3000;
 
