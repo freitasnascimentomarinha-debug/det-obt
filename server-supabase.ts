@@ -342,6 +342,16 @@ export async function createApp(options: { serverless?: boolean } = {}) {
     }
   });
 
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('usuarios').select('*').eq('id', req.params.id).single();
+      if (error || !data) return res.status(404).json({ error: 'Usuário não encontrado' });
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.patch("/api/users/:id", async (req, res) => {
     const { id } = req.params;
     const { nome, codigo_interno, organizacao_militar, ramal, perfil, posto_graduacao, funcao, ativo, admin_id, nome_completo, conhecimento_material } = req.body;

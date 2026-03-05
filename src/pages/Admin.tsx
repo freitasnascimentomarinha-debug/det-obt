@@ -222,8 +222,8 @@ export default function Admin({ user }: { user: Usuario }) {
   };
 
   const toggleUserStatus = async (targetUser: Usuario) => {
-    const newStatus = targetUser.ativo === 0 ? 1 : 0;
-    const action = newStatus === 1 ? 'ativar' : 'desativar';
+    const newStatus = !targetUser.ativo;
+    const action = newStatus ? 'ativar' : 'desativar';
     if (!confirm(`Deseja ${action} este usuário?`)) return;
     
     try {
@@ -416,7 +416,7 @@ export default function Admin({ user }: { user: Usuario }) {
                       </tr>
                     ) : (
                       filteredUsers.map(u => (
-                        <tr key={u.id} className={`hover:bg-[#39FF14]/5 transition-colors ${u.ativo === 0 ? 'opacity-50 grayscale' : ''}`}>
+                        <tr key={u.id} className={`hover:bg-[#39FF14]/5 transition-colors ${!u.ativo ? 'opacity-50 grayscale' : ''}`}>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               {u.foto_perfil ? (
@@ -456,11 +456,11 @@ export default function Admin({ user }: { user: Usuario }) {
                             <button 
                               onClick={() => toggleUserStatus(u)}
                               className={`flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-black uppercase transition-all ${
-                                u.ativo === 0 ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'bg-[#39FF14]/10 text-[#39FF14] hover:bg-[#39FF14]/20'
+                                !u.ativo ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'bg-[#39FF14]/10 text-[#39FF14] hover:bg-[#39FF14]/20'
                               }`}
                             >
-                              {u.ativo === 0 ? <UserMinus className="w-3 h-3" /> : <UserCheck className="w-3 h-3" />}
-                              {u.ativo === 0 ? 'Inativo' : 'Ativo'}
+                              {!u.ativo ? <UserMinus className="w-3 h-3" /> : <UserCheck className="w-3 h-3" />}
+                              {!u.ativo ? 'Inativo' : 'Ativo'}
                             </button>
                           </td>
                           <td className="px-6 py-4 text-right">
@@ -890,8 +890,8 @@ export default function Admin({ user }: { user: Usuario }) {
                   <input 
                     type="checkbox" 
                     id="user-active"
-                    checked={editingUser.ativo === 1}
-                    onChange={(e) => setEditingUser({ ...editingUser, ativo: e.target.checked ? 1 : 0 })}
+                    checked={!!editingUser.ativo}
+                    onChange={(e) => setEditingUser({ ...editingUser, ativo: e.target.checked })}
                     className="w-4 h-4 accent-[#39FF14]"
                   />
                   <label htmlFor="user-active" className="text-xs font-bold text-white uppercase">Usuário Ativo</label>

@@ -97,6 +97,22 @@ export default function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const ws = useRef<WebSocket | null>(null);
 
+  // Refresh user data from server to pick up profile/ativo changes
+  useEffect(() => {
+    if (user) {
+      fetch(`/api/users/${user.id}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && (data.perfil !== user.perfil || data.ativo !== user.ativo)) {
+            const updated = { ...user, ...data };
+            setUser(updated);
+            localStorage.setItem('sitec_user', JSON.stringify(updated));
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
   useEffect(() => {
     if (user) {
       fetchNotifications();
