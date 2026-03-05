@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ThumbsUp, MessageSquare, Eye, Share2, Camera, Loader2, CheckCircle, RotateCcw, ArrowLeft, Send, Building2, Mic, MicOff, Sparkles, X, Paperclip, Phone, Mail, ShieldCheck, Trash2 } from 'lucide-react';
+import { ThumbsUp, MessageSquare, Eye, Share2, Camera, Loader2, CheckCircle, RotateCcw, ArrowLeft, Send, Building2, Mic, MicOff, Sparkles, X, Paperclip, Phone, Mail, ShieldCheck, Trash2, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Consulta, Comentario, Usuario, Empresa, AuditoriaLog } from '../types';
 import { GoogleGenAI } from "@google/genai";
@@ -717,7 +717,7 @@ export default function ConsultaDetail({ user }: ConsultaDetailProps) {
                                 download={file.name}
                                 className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                               >
-                                <Share2 className="w-4 h-4 text-white" />
+                                <Download className="w-4 h-4 text-white" />
                               </a>
                             </div>
                           ) : (
@@ -733,7 +733,7 @@ export default function ConsultaDetail({ user }: ConsultaDetailProps) {
                                 <p className="text-xs font-bold text-white truncate">{file.name}</p>
                                 <p className="text-[10px] text-[#818384]">Clique para baixar</p>
                               </div>
-                              <Share2 className="w-4 h-4 text-[#818384] group-hover:text-[#39FF14]" />
+                              <Download className="w-4 h-4 text-[#818384] group-hover:text-[#39FF14]" />
                             </a>
                           )}
                         </div>
@@ -961,16 +961,15 @@ export default function ConsultaDetail({ user }: ConsultaDetailProps) {
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2 text-xs">
                     <span className="font-bold text-[#FFFFFF]">{com.autor_nome}</span>
-                    <span className="text-[#39FF14] font-mono text-[10px]">{com.autor_codigo}</span>
+                    {com.autor_codigo && <span className="text-[#39FF14] font-mono text-[10px]">NIP: {com.autor_codigo}</span>}
                     <span className="text-[#818384]">•</span>
                     <span className="text-[#818384]">{new Date(com.data_criacao).toLocaleString()}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-[9px] text-[#818384] uppercase font-bold">
-                    <span>{com.autor_posto}</span>
-                    <span>•</span>
-                    <span>{com.autor_funcao}</span>
-                    <span>•</span>
-                    <span className="text-[#39FF14]/60">{com.autor_om}</span>
+                  <div className="flex items-center gap-2 text-[9px] text-[#818384] uppercase font-bold flex-wrap">
+                    {com.autor_posto && <span>{com.autor_posto}</span>}
+                    {com.autor_funcao && <><span>•</span><span>{com.autor_funcao}</span></>}
+                    {com.autor_especialidade && <><span>•</span><span className="text-cyan-400/70">{com.autor_especialidade}</span></>}
+                    {com.autor_om && <><span>•</span><span className="text-[#39FF14]/60">{com.autor_om}</span></>}
                     {com.autor_perfil && (
                       <>
                         <span>•</span>
@@ -1036,7 +1035,7 @@ export default function ConsultaDetail({ user }: ConsultaDetailProps) {
                                 className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                 title="Baixar imagem"
                               >
-                                <Share2 className="w-4 h-4 text-white" />
+                                <Download className="w-4 h-4 text-white" />
                               </a>
                             </div>
                           ) : (
@@ -1052,7 +1051,7 @@ export default function ConsultaDetail({ user }: ConsultaDetailProps) {
                                 <p className="text-xs font-bold text-white truncate">{file.name}</p>
                                 <p className="text-[10px] text-[#818384]">Clique para baixar</p>
                               </div>
-                              <Share2 className="w-4 h-4 text-[#818384] group-hover:text-[#39FF14]" />
+                              <Download className="w-4 h-4 text-[#818384] group-hover:text-[#39FF14]" />
                             </a>
                           )}
                         </div>

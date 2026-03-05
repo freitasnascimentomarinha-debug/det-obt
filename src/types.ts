@@ -54,6 +54,7 @@ export interface Comentario {
   autor_funcao?: string;
   autor_posto?: string;
   autor_perfil?: string;
+  autor_especialidade?: string;
   total_curtidas: number;
 }
 

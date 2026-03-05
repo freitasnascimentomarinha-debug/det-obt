@@ -506,7 +506,7 @@ export async function createApp(options: { serverless?: boolean } = {}) {
       .from('comentarios')
       .select(`
         *,
-        usuarios:usuario_id (nome, organizacao_militar, foto_perfil, perfil),
+        usuarios:usuario_id (nome, organizacao_militar, foto_perfil, perfil, codigo_interno, funcao, conhecimento_material, posto_graduacao),
         curtidas_comentarios (count)
       `)
       .eq('consulta_id', req.params.id)
@@ -520,6 +520,10 @@ export async function createApp(options: { serverless?: boolean } = {}) {
       autor_om: c.usuarios?.organizacao_militar,
       autor_foto: c.usuarios?.foto_perfil,
       autor_perfil: c.usuarios?.perfil,
+      autor_codigo: c.usuarios?.codigo_interno,
+      autor_funcao: c.usuarios?.funcao,
+      autor_especialidade: c.usuarios?.conhecimento_material,
+      autor_posto: c.usuarios?.posto_graduacao,
       total_curtidas: c.curtidas_comentarios?.[0]?.count || 0
     }));
 
