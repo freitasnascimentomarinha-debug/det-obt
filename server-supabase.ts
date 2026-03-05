@@ -137,8 +137,80 @@ async function startServer() {
   });
 
   app.get("/api/config/classificacoes", async (req, res) => {
-    const { data } = await supabase.from('conhecimentos').select('*').order('nome');
+    let { data, error } = await supabase.from('classificacoes').select('*').order('nome');
+    if (error) {
+      const fallback = await supabase.from('conhecimentos').select('*').order('nome');
+      data = fallback.data;
+      error = fallback.error;
+    }
+    if (error) return res.status(400).json({ error: error.message });
     res.json(data || []);
+  });
+
+  const configTableMap: Record<string, string> = {
+    oms: 'oms',
+    funcoes: 'funcoes',
+    conhecimentos: 'conhecimentos',
+    classificacoes: 'classificacoes'
+  };
+
+  app.post("/api/config/:type", async (req, res) => {
+    const type = req.params.type;
+    let table = configTableMap[type];
+    const nome = String(req.body?.nome || '').trim();
+
+    if (!table) {
+      return res.status(400).json({ error: 'Tipo de configuração inválido.' });
+    }
+
+    if (!nome) {
+      return res.status(400).json({ error: 'Nome é obrigatório.' });
+    }
+
+    let { data, error } = await supabase
+      .from(table)
+      .insert({ nome })
+      .select()
+      .single();
+
+    if (error && type === 'classificacoes') {
+      table = 'conhecimentos';
+      const fallback = await supabase
+        .from(table)
+        .insert({ nome })
+        .select()
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
+
+    if (error) {
+      return res.status(400).json({ error: error.message || 'Erro ao salvar item da lista.' });
+    }
+
+    res.json(data);
+  });
+
+  app.delete("/api/config/:type/:id", async (req, res) => {
+    const type = req.params.type;
+    let table = configTableMap[type];
+    const id = Number(req.params.id);
+
+    if (!table || !id) {
+      return res.status(400).json({ error: 'Parâmetros inválidos.' });
+    }
+
+    let { error } = await supabase.from(table).delete().eq('id', id);
+    if (error && type === 'classificacoes') {
+      table = 'conhecimentos';
+      const fallback = await supabase.from(table).delete().eq('id', id);
+      error = fallback.error;
+    }
+    if (error) {
+      return res.status(400).json({ error: error.message || 'Erro ao excluir item da lista.' });
+    }
+
+    res.json({ success: true });
   });
 
   app.post("/api/login", async (req, res) => {
@@ -190,7 +262,25 @@ async function startServer() {
   });
 
   app.post("/api/notificacoes/:id/lida", async (req, res) => {
-    await supabase.from('notificacoes').update({ lida: true }).eq('id', req.params.id);
+    const notificationId = Number(req.params.id);
+    const usuarioId = Number(req.body?.usuario_id);
+
+    if (!notificationId || !usuarioId) {
+      return res.status(400).json({ error: "ID de notificação e usuário são obrigatórios." });
+    }
+
+    const { data: updated, error } = await supabase
+      .from('notificacoes')
+      .update({ lida: true })
+      .eq('id', notificationId)
+      .eq('usuario_id', usuarioId)
+      .select('id')
+      .single();
+
+    if (error || !updated) {
+      return res.status(404).json({ error: "Notificação não encontrada para este usuário." });
+    }
+
     res.json({ success: true });
   });
 
@@ -273,22 +363,54 @@ async function startServer() {
 
   app.patch("/api/users/:id/profile", async (req, res) => {
     const { id } = req.params;
-    const { nome, nome_completo, posto_graduacao, organizacao_militar, funcao, conhecimento_material, foto_perfil, ramal } = req.body;
+    const { nome, nome_completo, posto_graduacao, organizacao_militar, funcao, conhecimento_material, foto_perfil, ramal, perfil } = req.body;
+
+    const allowedPerfis = new Set(['usuario', 'obtencao', 'catalogacao', 'diretoria', 'especialista', 'admin']);
+    const perfilNormalizado = perfil ? String(perfil).trim() : undefined;
+
+    if (perfilNormalizado && !allowedPerfis.has(perfilNormalizado)) {
+      return res.status(400).json({ error: 'Perfil inválido.' });
+    }
+
+    const { data: currentUser, error: currentUserError } = await supabase
+      .from('usuarios')
+      .select('id, perfil')
+      .eq('id', id)
+      .single();
+
+    if (currentUserError || !currentUser) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    if (perfilNormalizado === 'admin' && currentUser.perfil !== 'admin') {
+      return res.status(403).json({ error: 'Apenas administradores podem definir perfil admin.' });
+    }
     
     let finalFoto = foto_perfil;
     if (foto_perfil && foto_perfil.startsWith('data:')) {
       const fileName = `avatar_${id}_${Date.now()}`;
-      const uploadedUrl = await uploadBase64ToStorage(foto_perfil, 'avatars', fileName);
+      const uploadedUrl = await uploadBase64ToStorage(foto_perfil, 'avatares', fileName);
       if (uploadedUrl) finalFoto = uploadedUrl;
     }
 
-    const { error } = await supabase.from('usuarios').update({
+    const updatePayload: any = {
       nome, nome_completo, posto_graduacao, organizacao_militar, funcao, conhecimento_material, foto_perfil: finalFoto, ramal
-    }).eq('id', id);
+    };
+
+    if (perfilNormalizado) {
+      updatePayload.perfil = perfilNormalizado;
+    }
+
+    const { data: updatedUser, error } = await supabase
+      .from('usuarios')
+      .update(updatePayload)
+      .eq('id', id)
+      .select('*')
+      .single();
 
     if (error) return res.status(400).json({ error: "Erro ao atualizar perfil." });
     await logAuditoria(Number(id), 'Perfil Atualizado', `Usuário atualizou seus próprios dados de perfil.`);
-    res.json({ success: true });
+    res.json(updatedUser);
   });
 
   app.get("/api/consultas", async (req, res) => {
@@ -636,6 +758,7 @@ async function startServer() {
 
   app.get("/api/empresas", async (req, res) => {
     const { numero_item } = req.query;
+    const viewerId = Number(req.query.usuario_id || 0);
     let query = supabase
       .from('empresas')
       .select(`
@@ -653,18 +776,39 @@ async function startServer() {
 
     if (error) return res.status(500).json({ error: error.message });
 
+    const empresaIds = (empresas || []).map((e: any) => e.id);
+    const validatedByViewer = new Set<number>();
+
+    if (viewerId && empresaIds.length > 0) {
+      const { data: viewerValidations } = await supabase
+        .from('validacoes_empresas')
+        .select('empresa_id')
+        .eq('usuario_id', viewerId)
+        .in('empresa_id', empresaIds);
+
+      viewerValidations?.forEach((v: any) => validatedByViewer.add(Number(v.empresa_id)));
+    }
+
     const formatted = empresas.map((e: any) => ({
       ...e,
       indicado_por: e.usuarios?.nome,
+      indicado_por_id: e.indicado_por_id,
       total_validacoes: e.validacoes_empresas?.[0]?.count || 0,
-      data_indicacao: e.data_indicacao || e.data_cadastro || e.created_at
+      data_indicacao: e.data_indicacao || e.data_cadastro || e.created_at,
+      validado_por_mim: validatedByViewer.has(Number(e.id))
     }));
 
     res.json(formatted);
   });
 
   app.post("/api/empresas", async (req, res) => {
-    const { cnpj, razao_social, telefones, emails, tipo, numero_item, usuario_id } = req.body;
+    const { cnpj, razao_social, telefones, emails, tipo, numero_item, usuario_id, indicado_por_id } = req.body;
+    const autorId = Number(usuario_id ?? indicado_por_id);
+
+    if (!autorId) {
+      return res.status(400).json({ error: "Usuário responsável pelo cadastro é obrigatório." });
+    }
+
     const now = new Date().toISOString();
     const { data: info, error } = await supabase.from('empresas').insert({
       cnpj, 
@@ -673,13 +817,13 @@ async function startServer() {
       emails: JSON.stringify(emails), 
       tipo, 
       numero_item, 
-      indicado_por_id: usuario_id,
+      indicado_por_id: autorId,
       data_indicacao: now,
       data_cadastro: now
     }).select().single();
 
     if (error) return res.status(400).json({ error: "Erro ao cadastrar empresa ou CNPJ já existe." });
-    await logAuditoria(usuario_id, 'Empresa Cadastrada', `Nova empresa cadastrada: ${razao_social}`);
+    await logAuditoria(autorId, 'Empresa Cadastrada', `Nova empresa cadastrada: ${razao_social}`);
     res.json({ id: info.id });
   });
 
@@ -856,25 +1000,30 @@ async function startServer() {
   });
 
   app.post("/api/empresas/:id/validar", async (req, res) => {
-    const { usuario_id } = req.body;
+    const usuarioId = Number(req.body?.usuario_id);
     const empresaId = req.params.id;
+
+    if (!usuarioId) {
+      return res.status(400).json({ error: "Usuário validador é obrigatório." });
+    }
     
     const { data: empresa } = await supabase.from('empresas').select('indicado_por_id').eq('id', empresaId).single();
     if (!empresa) return res.status(404).json({ error: "Fornecedor não encontrado" });
     
-    if (empresa.indicado_por_id === usuario_id) {
+    if (Number(empresa.indicado_por_id) === usuarioId) {
       return res.status(400).json({ error: "Você não pode validar sua própria informação." });
     }
     
-    try {
-      const { error } = await supabase.from('validacoes_empresas').insert({ empresa_id: empresaId, usuario_id });
-      if (error) throw error;
-      await logAuditoria(usuario_id, 'Validação de Fornecedor', `Validou fornecedor ID: ${empresaId}`);
-      res.json({ success: true });
-    } catch (e) {
-      await supabase.from('validacoes_empresas').delete().match({ empresa_id: empresaId, usuario_id });
-      res.json({ success: true, removed: true });
+    const { error } = await supabase.from('validacoes_empresas').insert({ empresa_id: empresaId, usuario_id: usuarioId });
+    if (error) {
+      if (error.code === '23505') {
+        return res.status(409).json({ error: "Você já validou este fornecedor." });
+      }
+      return res.status(400).json({ error: error.message || "Erro ao validar fornecedor." });
     }
+
+    await logAuditoria(usuarioId, 'Validação de Fornecedor', `Validou fornecedor ID: ${empresaId}`);
+    res.json({ success: true });
   });
 
   app.get("/api/auditoria", async (req, res) => {

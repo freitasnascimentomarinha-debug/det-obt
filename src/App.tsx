@@ -20,7 +20,11 @@ function NotificationBell({ user, notifications, setNotifications }: { user: Usu
 
   const markAsRead = async (id: number) => {
     try {
-      await fetch(`/api/notificacoes/${id}/lida`, { method: 'POST' });
+      await fetch(`/api/notificacoes/${id}/lida`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario_id: user.id })
+      });
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, lida: 1 } : n));
     } catch (err) {
       console.error(err);

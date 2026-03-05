@@ -65,6 +65,7 @@ export interface Empresa {
   telefones?: string; // Armazenado como JSON string
   emails?: string; // Armazenado como JSON string
   tipo: 'fabrica' | 'fornece' | 'similar';
+  indicado_por_id: number;
   usuario_id: number;
   indicado_por: string;
   data_indicacao: string;

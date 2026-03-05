@@ -76,6 +76,7 @@ export default function Empresas({ user }: EmpresasProps) {
         body: JSON.stringify({
           ...newEmpresa,
           numero_item: selectedItemNum,
+          usuario_id: user.id,
           indicado_por_id: user.id,
           telefones: newEmpresa.telefones.filter(t => t.trim() !== ''),
           emails: newEmpresa.emails.filter(e => e.trim() !== '')
@@ -404,7 +405,7 @@ export default function Empresas({ user }: EmpresasProps) {
                                 <span className="text-[9px] uppercase font-bold text-[#818384]">Validações</span>
                               </div>
                               
-                              {emp.usuario_id !== user.id && (
+                              {Number(emp.indicado_por_id) !== Number(user.id) && (
                                 <button
                                   onClick={() => handleValidar(emp.id)}
                                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase transition-all ${
