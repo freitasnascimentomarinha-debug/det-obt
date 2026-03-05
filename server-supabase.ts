@@ -83,9 +83,9 @@ async function startServer() {
     }
   };
 
-  const logAuditoria = async (usuario_id: number | null, acao: string, descricao: string, objeto_afetado?: string) => {
+  const logAuditoria = async (usuario_id: number | null, acao: string, descricao: string, objeto_afetado?: string, nome_usuario?: string) => {
     await supabase.from('auditoria').insert({
-      usuario_id, acao, descricao, objeto_afetado
+      usuario_id, acao, descricao, objeto_afetado, nome_usuario
     });
   };
 
@@ -635,7 +635,8 @@ async function startServer() {
   });
 
   app.get("/api/empresas", async (req, res) => {
-    const { data: empresas, error } = await supabase
+    const { numero_item } = req.query;
+    let query = supabase
       .from('empresas')
       .select(`
         *,
@@ -643,6 +644,12 @@ async function startServer() {
         validacoes_empresas (count)
       `)
       .order('data_cadastro', { ascending: false });
+
+    if (numero_item) {
+      query = query.eq('numero_item', numero_item);
+    }
+
+    const { data: empresas, error } = await query;
 
     if (error) return res.status(500).json({ error: error.message });
 
@@ -828,19 +835,20 @@ async function startServer() {
   });
 
   app.patch("/api/consultas/:id/status", async (req, res) => {
-    const { status, usuario_id } = req.body;
+    const { status, alterado_por_id } = req.body;
     const { error } = await supabase.from('consultas').update({ 
-      status
+      status,
+      alterado_por: req.body.alterado_por || null
     }).eq('id', req.params.id);
     if (error) {
       console.error("Error updating status:", error);
       return res.status(500).json({ error: error.message });
     }
-    await logAuditoria(usuario_id, 'Alteração de Status', `Status da consulta ${req.params.id} alterado para: ${status}`, req.params.id);
+    await logAuditoria(alterado_por_id, 'Alteração de Status', `Status da consulta ${req.params.id} alterado para: ${status}`, req.params.id, req.body.alterado_por);
     
     // Notify author
     const { data: consulta } = await supabase.from('consultas').select('usuario_id, numero_item').eq('id', req.params.id).single();
-    if (consulta && consulta.usuario_id !== usuario_id) {
+    if (consulta && consulta.usuario_id !== alterado_por_id) {
       await createNotification(consulta.usuario_id, 'status', `O status do seu chamado ${consulta.numero_item} foi alterado para ${status}.`, `/consulta/${req.params.id}`);
     }
     
@@ -870,15 +878,23 @@ async function startServer() {
   });
 
   app.get("/api/auditoria", async (req, res) => {
-    const { data } = await supabase
+    const { objeto_afetado } = req.query;
+    let query = supabase
       .from('auditoria')
       .select(`*, usuarios:usuario_id (nome, organizacao_militar)`)
-      .order('data_hora', { ascending: false })
-      .limit(100);
+      .order('data_hora', { ascending: false });
+    
+    if (objeto_afetado) {
+      query = query.eq('objeto_afetado', objeto_afetado);
+    } else {
+      query = query.limit(100);
+    }
+    
+    const { data } = await query;
     
     const formatted = data?.map((a: any) => ({
       ...a,
-      nome_guerra: a.usuarios?.nome,
+      nome_guerra: a.usuarios?.nome || a.nome_usuario || 'Sistema',
       organizacao_militar: a.usuarios?.organizacao_militar
     }));
     res.json(formatted || []);

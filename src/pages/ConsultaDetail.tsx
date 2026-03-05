@@ -75,7 +75,7 @@ export default function ConsultaDetail({ user }: ConsultaDetailProps) {
       if (cData) {
         setConsulta({ ...cData, visualizacoes: (cData.visualizacoes || 0) + 1 });
         const [empRes, auditRes] = await Promise.all([
-          fetch(`/api/empresas?consulta_id=${id}&usuario_id=${user.id}`),
+          fetch(`/api/empresas?numero_item=${cData.numero_item}`),
           fetch(`/api/auditoria?objeto_afetado=${id}`)
         ]);
         
@@ -124,7 +124,7 @@ export default function ConsultaDetail({ user }: ConsultaDetailProps) {
           emails: ['', '', ''],
           tipo: 'fornece',
         });
-        const empRes = await fetch(`/api/empresas?consulta_id=${id}&usuario_id=${user.id}`);
+        const empRes = await fetch(`/api/empresas?numero_item=${consulta.numero_item}`);
         if (empRes.ok) setEmpresas(await empRes.json());
         alert('Fornecedor indicado com sucesso!');
       } else {
@@ -147,7 +147,7 @@ export default function ConsultaDetail({ user }: ConsultaDetailProps) {
         body: JSON.stringify({ usuario_id: user.id })
       });
       if (res.ok) {
-        const empRes = await fetch(`/api/empresas?consulta_id=${id}&usuario_id=${user.id}`);
+        const empRes = await fetch(`/api/empresas?numero_item=${consulta.numero_item}`);
         if (empRes.ok) setEmpresas(await empRes.json());
       } else {
         const data = await res.json();
