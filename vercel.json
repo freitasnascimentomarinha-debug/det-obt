@@ -3,18 +3,18 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/[...path].ts": {
+    "api/index.ts": {
       "maxDuration": 30,
       "includeFiles": "server-supabase.ts"
     }
   },
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
+      "source": "/api/:path(.*)",
+      "destination": "/api"
     },
     {
-      "source": "/:path((?!api$|api/).*)",
+      "source": "/((?!api).*)",
       "destination": "/index.html"
     }
   ]
