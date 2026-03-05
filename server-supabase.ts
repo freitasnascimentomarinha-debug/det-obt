@@ -22,7 +22,8 @@ if (supabaseUrl && supabaseKey) {
   console.error('CRITICAL: Supabase URL or Key is missing!');
 }
 
-async function startServer() {
+export async function createApp(options: { serverless?: boolean } = {}) {
+  const { serverless = false } = options;
   const app = express();
   const PORT = 3000;
   
@@ -40,23 +41,27 @@ async function startServer() {
     next();
   });
   
-  const server = http.createServer(app);
-  const wss = new WebSocketServer({ server });
   const clients = new Map<number, WebSocket>();
+  let server: http.Server | null = null;
 
-  wss.on("connection", (ws) => {
-    let userId: number | null = null;
-    ws.on("message", (message) => {
-      const data = JSON.parse(message.toString());
-      if (data.type === "auth") {
-        userId = data.userId;
-        if (userId) clients.set(userId, ws);
-      }
+  if (!serverless) {
+    server = http.createServer(app);
+    const wss = new WebSocketServer({ server });
+
+    wss.on("connection", (ws) => {
+      let userId: number | null = null;
+      ws.on("message", (message) => {
+        const data = JSON.parse(message.toString());
+        if (data.type === "auth") {
+          userId = data.userId;
+          if (userId) clients.set(userId, ws);
+        }
+      });
+      ws.on("close", () => {
+        if (userId) clients.delete(userId);
+      });
     });
-    ws.on("close", () => {
-      if (userId) clients.delete(userId);
-    });
-  });
+  }
 
   const sendNotification = (userId: number, notification: any) => {
     const client = clients.get(userId);
@@ -1220,22 +1225,35 @@ async function startServer() {
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    app.use(express.static("dist"));
-    app.get("*", (req, res) => {
-      res.sendFile("dist/index.html", { root: "." });
-    });
+  if (!serverless) {
+    if (process.env.NODE_ENV !== "production") {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else {
+      app.use(express.static("dist"));
+      app.get("*", (req, res) => {
+        res.sendFile("dist/index.html", { root: "." });
+      });
+    }
   }
 
-  server.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT} (Supabase Backend)`);
+  return { app, server, port: PORT };
+}
+
+export async function startServer() {
+  const { server, port } = await createApp({ serverless: false });
+  if (!server) {
+    throw new Error("Servidor HTTP não inicializado.");
+  }
+
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${port} (Supabase Backend)`);
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
