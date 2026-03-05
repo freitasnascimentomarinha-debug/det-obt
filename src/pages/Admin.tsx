@@ -475,6 +475,13 @@ export default function Admin({ user }: { user: Usuario }) {
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>
+                              <button
+                                onClick={() => handleDeleteUser(u.id)}
+                                className="p-2 hover:bg-red-500/10 rounded-full text-[#818384] hover:text-red-500 transition-colors"
+                                title="Excluir Usuário"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
                           </td>
                         </tr>
