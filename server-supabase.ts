@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { WebSocketServer, WebSocket } from "ws";
@@ -1227,6 +1226,7 @@ export async function createApp(options: { serverless?: boolean } = {}) {
   // Vite middleware for development
   if (!serverless) {
     if (process.env.NODE_ENV !== "production") {
+      const { createServer: createViteServer } = await import('vite');
       const vite = await createViteServer({
         server: { middlewareMode: true },
         appType: "spa",
