@@ -132,15 +132,20 @@ async function startServer() {
   });
 
   app.get("/api/config/conhecimentos", async (req, res) => {
+    const classificacaoFallbackPrefix = '__CLASSIFICACAO__::';
     const { data } = await supabase.from('conhecimentos').select('*').order('nome');
-    res.json(data || []);
+    const filtered = (data || []).filter((item: any) => !String(item.nome || '').startsWith(classificacaoFallbackPrefix));
+    res.json(filtered);
   });
 
   app.get("/api/config/classificacoes", async (req, res) => {
+    const classificacaoFallbackPrefix = '__CLASSIFICACAO__::';
     let { data, error } = await supabase.from('classificacoes').select('*').order('nome');
     if (error) {
       const fallback = await supabase.from('conhecimentos').select('*').order('nome');
-      data = fallback.data;
+      data = (fallback.data || [])
+        .filter((item: any) => String(item.nome || '').startsWith(classificacaoFallbackPrefix))
+        .map((item: any) => ({ ...item, nome: String(item.nome).slice(classificacaoFallbackPrefix.length) }));
       error = fallback.error;
     }
     if (error) return res.status(400).json({ error: error.message });
@@ -155,6 +160,7 @@ async function startServer() {
   };
 
   app.post("/api/config/:type", async (req, res) => {
+    const classificacaoFallbackPrefix = '__CLASSIFICACAO__::';
     const type = req.params.type;
     let table = configTableMap[type];
     const nome = String(req.body?.nome || '').trim();
@@ -177,10 +183,10 @@ async function startServer() {
       table = 'conhecimentos';
       const fallback = await supabase
         .from(table)
-        .insert({ nome })
+        .insert({ nome: `${classificacaoFallbackPrefix}${nome}` })
         .select()
         .single();
-      data = fallback.data;
+      data = fallback.data ? { ...fallback.data, nome } : fallback.data;
       error = fallback.error;
     }
 
@@ -192,6 +198,7 @@ async function startServer() {
   });
 
   app.delete("/api/config/:type/:id", async (req, res) => {
+    const classificacaoFallbackPrefix = '__CLASSIFICACAO__::';
     const type = req.params.type;
     let table = configTableMap[type];
     const id = Number(req.params.id);
@@ -203,7 +210,11 @@ async function startServer() {
     let { error } = await supabase.from(table).delete().eq('id', id);
     if (error && type === 'classificacoes') {
       table = 'conhecimentos';
-      const fallback = await supabase.from(table).delete().eq('id', id);
+      const fallback = await supabase
+        .from(table)
+        .delete()
+        .eq('id', id)
+        .like('nome', `${classificacaoFallbackPrefix}%`);
       error = fallback.error;
     }
     if (error) {
