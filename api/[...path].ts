@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { createApp } from '../server-supabase';
+import { createApp } from '../server-supabase.ts';
 
 let appPromise: Promise<any> | null = null;
 
