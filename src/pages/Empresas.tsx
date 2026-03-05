@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Building2, Phone, Mail, User, Calendar, Loader2, Filter, Package, Plus, X, CheckCircle, ShieldCheck } from 'lucide-react';
+import { Search, Building2, Phone, Mail, User, Calendar, Loader2, Filter, Package, Plus, X, CheckCircle, ShieldCheck, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Empresa, Usuario } from '../types';
 
@@ -117,6 +117,21 @@ export default function Empresas({ user }: EmpresasProps) {
       } else {
         const data = await res.json();
         alert(data.error);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteEmpresa = async (empresaId: number) => {
+    if (!confirm('Tem certeza que deseja excluir este fornecedor? Esta ação não pode ser desfeita.')) return;
+    try {
+      const res = await fetch(`/api/empresas/${empresaId}?admin_id=${user.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchEmpresas();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Erro ao excluir fornecedor.');
       }
     } catch (err) {
       console.error(err);
@@ -416,6 +431,15 @@ export default function Empresas({ user }: EmpresasProps) {
                                 >
                                   <CheckCircle className="w-3 h-3" />
                                   {emp.validado_por_mim ? 'Validado' : 'Validar Info'}
+                                </button>
+                              )}
+                              {user.perfil === 'admin' && (
+                                <button
+                                  onClick={() => handleDeleteEmpresa(emp.id)}
+                                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  Excluir
                                 </button>
                               )}
                             </div>

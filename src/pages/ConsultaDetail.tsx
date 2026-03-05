@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ThumbsUp, MessageSquare, Eye, Share2, Camera, Loader2, CheckCircle, RotateCcw, ArrowLeft, Send, Building2, Mic, MicOff, Sparkles, X, Paperclip, Phone, Mail, ShieldCheck } from 'lucide-react';
+import { ThumbsUp, MessageSquare, Eye, Share2, Camera, Loader2, CheckCircle, RotateCcw, ArrowLeft, Send, Building2, Mic, MicOff, Sparkles, X, Paperclip, Phone, Mail, ShieldCheck, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Consulta, Comentario, Usuario, Empresa, AuditoriaLog } from '../types';
 import { GoogleGenAI } from "@google/genai";
@@ -242,6 +242,21 @@ export default function ConsultaDetail({ user }: ConsultaDetailProps) {
       }
     } catch (err) {
       console.error('Erro ao curtir comentário', err);
+    }
+  };
+
+  const handleDeleteConsulta = async () => {
+    if (!confirm('Tem certeza que deseja excluir este chamado? Esta ação não pode ser desfeita.')) return;
+    try {
+      const res = await fetch(`/api/consultas/${id}?admin_id=${user.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        navigate('/dashboard');
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Erro ao excluir chamado.');
+      }
+    } catch (err) {
+      console.error('Erro ao excluir consulta', err);
     }
   };
 
@@ -814,6 +829,15 @@ export default function ConsultaDetail({ user }: ConsultaDetailProps) {
                   >
                     <RotateCcw className="w-4 h-4" />
                     Reabrir Consulta
+                  </button>
+                )}
+                {user.perfil === 'admin' && (
+                  <button
+                    onClick={handleDeleteConsulta}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-full text-xs font-bold transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Excluir Chamado
                   </button>
                 )}
               </div>

@@ -564,24 +564,38 @@ export async function createApp(options: { serverless?: boolean } = {}) {
 
   app.post("/api/consultas/:id/curtir", async (req, res) => {
     const { usuario_id } = req.body;
-    try {
-      await supabase.from('curtidas_consultas').insert({ consulta_id: req.params.id, usuario_id });
-      res.json({ success: true });
-    } catch (e) {
+    const { data: existing } = await supabase
+      .from('curtidas_consultas')
+      .select('consulta_id')
+      .match({ consulta_id: req.params.id, usuario_id })
+      .maybeSingle();
+
+    if (existing) {
       await supabase.from('curtidas_consultas').delete().match({ consulta_id: req.params.id, usuario_id });
-      res.json({ success: true, removed: true });
+      return res.json({ success: true, removed: true });
     }
+
+    const { error } = await supabase.from('curtidas_consultas').insert({ consulta_id: req.params.id, usuario_id });
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
   });
 
   app.post("/api/comentarios/:id/curtir", async (req, res) => {
     const { usuario_id } = req.body;
-    try {
-      await supabase.from('curtidas_comentarios').insert({ comentario_id: req.params.id, usuario_id });
-      res.json({ success: true });
-    } catch (e) {
+    const { data: existing } = await supabase
+      .from('curtidas_comentarios')
+      .select('comentario_id')
+      .match({ comentario_id: req.params.id, usuario_id })
+      .maybeSingle();
+
+    if (existing) {
       await supabase.from('curtidas_comentarios').delete().match({ comentario_id: req.params.id, usuario_id });
-      res.json({ success: true, removed: true });
+      return res.json({ success: true, removed: true });
     }
+
+    const { error } = await supabase.from('curtidas_comentarios').insert({ comentario_id: req.params.id, usuario_id });
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
   });
 
   app.get("/api/amizades/status/:uid/:fid", async (req, res) => {
@@ -1011,6 +1025,51 @@ export async function createApp(options: { serverless?: boolean } = {}) {
       await createNotification(consulta.usuario_id, 'status', `O status do seu chamado ${consulta.numero_item} foi alterado para ${status}.`, `/consulta/${req.params.id}`);
     }
     
+    res.json({ success: true });
+  });
+
+  app.delete("/api/consultas/:id", async (req, res) => {
+    const adminId = Number(req.query.admin_id || req.body?.admin_id);
+    if (!adminId) return res.status(400).json({ error: "admin_id é obrigatório." });
+
+    const { data: admin } = await supabase.from('usuarios').select('perfil').eq('id', adminId).single();
+    if (!admin || admin.perfil !== 'admin') {
+      return res.status(403).json({ error: "Apenas administradores podem excluir chamados." });
+    }
+
+    const consultaId = req.params.id;
+    // Remove dependências
+    await supabase.from('curtidas_comentarios').delete().in(
+      'comentario_id',
+      (await supabase.from('comentarios').select('id').eq('consulta_id', consultaId)).data?.map((c: any) => c.id) || []
+    );
+    await supabase.from('comentarios').delete().eq('consulta_id', consultaId);
+    await supabase.from('curtidas_consultas').delete().eq('consulta_id', consultaId);
+    await supabase.from('notificacoes').delete().like('link', `/consulta/${consultaId}`);
+
+    const { error } = await supabase.from('consultas').delete().eq('id', consultaId);
+    if (error) return res.status(500).json({ error: error.message });
+
+    await logAuditoria(adminId, 'Consulta Excluída', `Admin excluiu consulta ID: ${consultaId}`, consultaId);
+    res.json({ success: true });
+  });
+
+  app.delete("/api/empresas/:id", async (req, res) => {
+    const adminId = Number(req.query.admin_id || req.body?.admin_id);
+    if (!adminId) return res.status(400).json({ error: "admin_id é obrigatório." });
+
+    const { data: admin } = await supabase.from('usuarios').select('perfil').eq('id', adminId).single();
+    if (!admin || admin.perfil !== 'admin') {
+      return res.status(403).json({ error: "Apenas administradores podem excluir fornecedores." });
+    }
+
+    const empresaId = req.params.id;
+    await supabase.from('validacoes_empresas').delete().eq('empresa_id', empresaId);
+
+    const { error } = await supabase.from('empresas').delete().eq('id', empresaId);
+    if (error) return res.status(500).json({ error: error.message });
+
+    await logAuditoria(adminId, 'Fornecedor Excluído', `Admin excluiu fornecedor ID: ${empresaId}`, empresaId);
     res.json({ success: true });
   });
 
