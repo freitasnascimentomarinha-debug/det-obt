@@ -1,8 +1,8 @@
-import { AlarmClock, Gauge, ListChecks, MessagesSquare } from 'lucide-react';
+import { AlarmClock, BellRing, Gauge, ListChecks, MessagesSquare, Sparkles } from 'lucide-react';
 import { useRFQContext } from './RFQLayout';
 
 export default function RFQFerramentas() {
-  const { processes } = useRFQContext();
+  const { processes, notifications, items, companies } = useRFQContext();
 
   const processNearDeadline = [...processes]
     .sort((a, b) => Date.parse(a.deadline) - Date.parse(b.deadline))
@@ -66,6 +66,21 @@ export default function RFQFerramentas() {
       <div className="rfq-grid-two">
         <section className="rfq-panel">
           <div className="rfq-inline-title">
+            <BellRing size={18} />
+            <h2>Motor de notificações</h2>
+          </div>
+          <ul className="rfq-list">
+            {notifications.slice(0, 4).map((notification) => (
+              <li key={notification.id}>
+                <span>{notification.title}</span>
+                <strong>{notification.type}</strong>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="rfq-panel">
+          <div className="rfq-inline-title">
             <AlarmClock size={18} />
             <h2>Prioridades da semana</h2>
           </div>
@@ -103,6 +118,25 @@ export default function RFQFerramentas() {
             “Mantemos foco em negociações com maior impacto financeiro, combinando velocidade de
             homologação e mitigação de risco de abastecimento.”
           </p>
+        </section>
+
+        <section className="rfq-panel">
+          <div className="rfq-inline-title">
+            <Sparkles size={18} />
+            <h2>Inteligência de preferenciais</h2>
+          </div>
+          <ul className="rfq-list">
+            {items.slice(0, 4).map((item) => {
+              const supplier = companies.find((company) => company.name === item.preferredSupplier);
+
+              return (
+                <li key={item.id}>
+                  <span>{item.description}</span>
+                  <strong>{supplier?.name ?? item.preferredSupplier}</strong>
+                </li>
+              );
+            })}
+          </ul>
         </section>
 
         <section className="rfq-panel">

@@ -7,8 +7,11 @@ export default function RFQItens() {
   const [sku, setSku] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('MRO');
+  const [unit, setUnit] = useState('un');
   const [annualVolume, setAnnualVolume] = useState('1000');
   const [preferredSupplier, setPreferredSupplier] = useState('');
+  const [lastValidPrice, setLastValidPrice] = useState('0');
+  const [lastValidDate, setLastValidDate] = useState(new Date().toISOString().slice(0, 10));
 
   const totalVolume = useMemo(
     () => items.reduce((acc, item) => acc + item.annualVolume, 0),
@@ -26,15 +29,21 @@ export default function RFQItens() {
       sku: sku.trim().toUpperCase(),
       description: description.trim(),
       category,
+      unit,
       annualVolume: Number(annualVolume),
-      preferredSupplier: preferredSupplier.trim()
+      preferredSupplier: preferredSupplier.trim(),
+      lastValidPrice: Number(lastValidPrice),
+      lastValidDate
     });
 
     setSku('');
     setDescription('');
     setCategory('MRO');
+    setUnit('un');
     setAnnualVolume('1000');
     setPreferredSupplier('');
+    setLastValidPrice('0');
+    setLastValidDate(new Date().toISOString().slice(0, 10));
   };
 
   return (
@@ -64,12 +73,26 @@ export default function RFQItens() {
               </select>
             </label>
             <label>
+              Unidade
+              <input value={unit} onChange={(event) => setUnit(event.target.value)} placeholder="un, kit, m" />
+            </label>
+            <label>
               Volume anual
               <input type="number" min="1" value={annualVolume} onChange={(event) => setAnnualVolume(event.target.value)} />
             </label>
+          </div>
+          <div className="rfq-form-inline">
             <label>
               Fornecedor preferencial
               <input value={preferredSupplier} onChange={(event) => setPreferredSupplier(event.target.value)} placeholder="Ex.: Atlas Insumos" />
+            </label>
+            <label>
+              Último preço válido
+              <input type="number" min="0" step="0.01" value={lastValidPrice} onChange={(event) => setLastValidPrice(event.target.value)} />
+            </label>
+            <label>
+              Validade histórica
+              <input type="date" value={lastValidDate} onChange={(event) => setLastValidDate(event.target.value)} />
             </label>
           </div>
           <button type="submit" className="rfq-button">
@@ -96,6 +119,7 @@ export default function RFQItens() {
                 <th>Categoria</th>
                 <th>Volume</th>
                 <th>Fornecedor</th>
+                <th>Referência válida</th>
               </tr>
             </thead>
             <tbody>
@@ -103,13 +127,17 @@ export default function RFQItens() {
                 <tr key={item.id}>
                   <td>{item.sku}</td>
                   <td>{item.description}</td>
-                  <td>{item.category}</td>
+                  <td>{item.category} / {item.unit ?? 'un'}</td>
                   <td>{item.annualVolume.toLocaleString('pt-BR')}</td>
                   <td>
                     <span className="rfq-status rfq-status-neutral">
                       <PackageCheck size={12} />
                       {item.preferredSupplier}
                     </span>
+                  </td>
+                  <td>
+                    {item.lastValidPrice ? `R$ ${item.lastValidPrice.toFixed(2)}` : '-'}
+                    <div className="rfq-subtle-text">{item.lastValidDate ?? '-'}</div>
                   </td>
                 </tr>
               ))}

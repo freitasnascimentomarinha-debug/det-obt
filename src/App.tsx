@@ -18,6 +18,9 @@ import RFQDashboard from './pages/rfq/RFQDashboard';
 import RFQEmpresas from './pages/rfq/RFQEmpresas';
 import RFQItens from './pages/rfq/RFQItens';
 import RFQFerramentas from './pages/rfq/RFQFerramentas';
+import RFQProcessos from './pages/rfq/RFQProcessos';
+import RFQHistorico from './pages/rfq/RFQHistorico';
+import RFQSupplierPortal from './pages/rfq/RFQSupplierPortal';
 
 function NotificationBell({ user, notifications, setNotifications }: { user: Usuario, notifications: Notificacao[], setNotifications: React.Dispatch<React.SetStateAction<Notificacao[]>> }) {
   const [show, setShow] = useState(false);
@@ -183,7 +186,14 @@ export default function App() {
   };
 
   if (!user) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <Router>
+        <Routes>
+          <Route path="/rfq/fornecedor/:token" element={<RFQSupplierPortal />} />
+          <Route path="*" element={<Login onLogin={handleLogin} />} />
+        </Routes>
+      </Router>
+    );
   }
 
   return (
@@ -268,11 +278,14 @@ export default function App() {
             <Route path="/empresas" element={<Empresas user={user} />} />
             <Route path="/ranking" element={<Ranking />} />
             <Route path="/chat" element={<Chat user={user} />} />
+            <Route path="/rfq/fornecedor/:token" element={<RFQSupplierPortal />} />
             <Route path="/rfq" element={<RFQLayout user={user} />}>
               <Route index element={<RFQDashboard />} />
+              <Route path="processos" element={<RFQProcessos />} />
               <Route path="empresas" element={<RFQEmpresas />} />
               <Route path="itens" element={<RFQItens />} />
               <Route path="ferramentas" element={<RFQFerramentas />} />
+              <Route path="historico" element={<RFQHistorico />} />
             </Route>
             <Route path="/admin" element={<Admin user={user} />} />
             <Route path="*" element={<Navigate to="/" />} />

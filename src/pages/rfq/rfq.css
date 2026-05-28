@@ -214,6 +214,7 @@
 
 .rfq-ai-input-wrap input,
 .rfq-form input,
+.rfq-form textarea,
 .rfq-form select {
   width: 100%;
   background: rgba(15, 27, 18, 0.95);
@@ -225,6 +226,7 @@
 
 .rfq-ai-input-wrap input:focus,
 .rfq-form input:focus,
+.rfq-form textarea:focus,
 .rfq-form select:focus {
   outline: none;
   border-color: rgba(190, 230, 149, 0.74);
@@ -249,6 +251,13 @@
 .rfq-ai-input-wrap button:hover,
 .rfq-button:hover {
   transform: translateY(-1px);
+}
+
+.rfq-ai-input-wrap button:disabled,
+.rfq-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .rfq-ai-result {
@@ -468,6 +477,248 @@
   color: #13220f;
 }
 
+.rfq-process-shell,
+.rfq-history-card-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.rfq-process-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.rfq-process-card {
+  text-align: left;
+  border: 1px solid rgba(143, 187, 128, 0.2);
+  border-radius: 12px;
+  padding: 0.8rem;
+  background: rgba(12, 20, 14, 0.72);
+  display: grid;
+  gap: 0.35rem;
+  transition: border-color 180ms ease, transform 180ms ease;
+}
+
+.rfq-process-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(190, 230, 149, 0.5);
+}
+
+.rfq-process-card-active {
+  border-color: rgba(190, 230, 149, 0.72);
+  box-shadow: 0 0 0 1px rgba(190, 230, 149, 0.18);
+}
+
+.rfq-process-header,
+.rfq-process-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.rfq-process-card p,
+.rfq-link-card p,
+.rfq-history-card p {
+  margin: 0;
+  color: rgba(220, 235, 215, 0.76);
+  font-size: 0.82rem;
+}
+
+.rfq-checkbox-grid {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.rfq-checkbox-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  border: 1px solid rgba(138, 180, 123, 0.18);
+  border-radius: 10px;
+  padding: 0.6rem;
+  background: rgba(10, 18, 12, 0.5);
+}
+
+.rfq-checkbox-item input {
+  width: auto;
+  margin-top: 0.15rem;
+}
+
+.rfq-checkbox-item strong,
+.rfq-link-card strong,
+.rfq-history-card strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.rfq-checkbox-item p {
+  margin: 0.18rem 0 0;
+  color: rgba(220, 235, 215, 0.68);
+  font-size: 0.78rem;
+}
+
+.rfq-link-grid {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.rfq-link-card,
+.rfq-history-card {
+  border: 1px solid rgba(143, 187, 128, 0.18);
+  border-radius: 12px;
+  padding: 0.7rem;
+  background: rgba(10, 18, 12, 0.54);
+  display: grid;
+  gap: 0.35rem;
+}
+
+.rfq-link-card a {
+  color: #dff4c9;
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+
+.rfq-best-cell {
+  color: #d9f4c3;
+  font-weight: 800;
+}
+
+.rfq-chip-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.rfq-soft-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  padding: 0.26rem 0.58rem;
+  background: rgba(175, 225, 161, 0.12);
+  border: 1px solid rgba(175, 225, 161, 0.2);
+  color: rgba(231, 243, 228, 0.88);
+  font-size: 0.75rem;
+}
+
+.rfq-empty-state {
+  margin: 0;
+  color: rgba(219, 234, 214, 0.7);
+}
+
+.rfq-supplier-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(177, 228, 126, 0.2), transparent 30%),
+    linear-gradient(180deg, #0f1d13 0%, #07110b 100%);
+  padding: 1.5rem;
+  color: #f4f8f2;
+  display: grid;
+  gap: 1rem;
+}
+
+.rfq-supplier-hero {
+  border: 1px solid rgba(154, 201, 127, 0.24);
+  border-radius: 18px;
+  padding: 1.2rem;
+  background: linear-gradient(135deg, rgba(18, 31, 22, 0.96), rgba(9, 18, 12, 0.92));
+  display: grid;
+  gap: 0.7rem;
+}
+
+.rfq-supplier-hero h1 {
+  margin: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(1.55rem, 3vw, 2.3rem);
+}
+
+.rfq-supplier-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.rfq-supplier-meta span,
+.rfq-deadline-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  background: rgba(193, 230, 149, 0.1);
+  border: 1px solid rgba(193, 230, 149, 0.18);
+  font-size: 0.8rem;
+}
+
+.rfq-price-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.rfq-price-card {
+  border: 1px solid rgba(140, 182, 125, 0.18);
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: rgba(8, 16, 10, 0.64);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.rfq-price-card p {
+  margin: 0;
+  color: rgba(223, 237, 219, 0.72);
+  font-size: 0.8rem;
+}
+
+.rfq-file-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: rgba(223, 237, 219, 0.84);
+  font-size: 0.8rem;
+}
+
+.rfq-chat-box {
+  display: grid;
+  gap: 0.55rem;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.rfq-chat-message {
+  border-radius: 12px;
+  padding: 0.7rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.rfq-chat-message p,
+.rfq-chat-message span {
+  margin: 0;
+}
+
+.rfq-chat-message span {
+  font-size: 0.72rem;
+  color: rgba(214, 231, 208, 0.65);
+}
+
+.rfq-chat-author {
+  font-size: 0.78rem;
+}
+
+.rfq-chat-buyer {
+  background: rgba(67, 111, 69, 0.28);
+}
+
+.rfq-chat-supplier {
+  background: rgba(125, 180, 73, 0.22);
+}
+
+.rfq-chat-ai {
+  background: rgba(197, 226, 139, 0.12);
+}
+
 @media (max-width: 1024px) {
   .rfq-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -484,6 +735,10 @@
 }
 
 @media (max-width: 640px) {
+  .rfq-supplier-shell {
+    padding: 1rem;
+  }
+
   .rfq-hero {
     padding: 1rem;
   }

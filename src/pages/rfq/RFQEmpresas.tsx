@@ -5,7 +5,11 @@ import { useRFQContext } from './RFQLayout';
 export default function RFQEmpresas() {
   const { companies, addCompany } = useRFQContext();
   const [name, setName] = useState('');
+  const [cnpj, setCnpj] = useState('');
+  const [email, setEmail] = useState('');
+  const [contactName, setContactName] = useState('');
   const [segment, setSegment] = useState('');
+  const [preferredCategories, setPreferredCategories] = useState('');
   const [rating, setRating] = useState('4.0');
   const [leadTimeDays, setLeadTimeDays] = useState('20');
   const [status, setStatus] = useState<'Approved' | 'Pending'>('Approved');
@@ -18,20 +22,31 @@ export default function RFQEmpresas() {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!name.trim() || !segment.trim()) {
+    if (!name.trim() || !segment.trim() || !email.trim()) {
       return;
     }
 
     addCompany({
       name: name.trim(),
+      cnpj: cnpj.trim(),
+      email: email.trim(),
+      contactName: contactName.trim(),
       segment: segment.trim(),
+      preferredCategories: preferredCategories
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
       rating: Number(rating),
       leadTimeDays: Number(leadTimeDays),
       status
     });
 
     setName('');
+    setCnpj('');
+    setEmail('');
+    setContactName('');
     setSegment('');
+    setPreferredCategories('');
     setRating('4.0');
     setLeadTimeDays('20');
     setStatus('Approved');
@@ -49,9 +64,27 @@ export default function RFQEmpresas() {
             Empresa
             <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Horizonte Naval" />
           </label>
+          <div className="rfq-form-inline">
+            <label>
+              CNPJ
+              <input value={cnpj} onChange={(event) => setCnpj(event.target.value)} placeholder="00.000.000/0000-00" />
+            </label>
+            <label>
+              E-mail
+              <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="cotacoes@empresa.com" />
+            </label>
+            <label>
+              Contato
+              <input value={contactName} onChange={(event) => setContactName(event.target.value)} placeholder="Nome do responsável" />
+            </label>
+          </div>
           <label>
             Segmento
             <input value={segment} onChange={(event) => setSegment(event.target.value)} placeholder="Ex.: Componentes eletrônicos" />
+          </label>
+          <label>
+            Categorias preferenciais
+            <input value={preferredCategories} onChange={(event) => setPreferredCategories(event.target.value)} placeholder="Ex.: MRO, Eletrônica, Estrutural" />
           </label>
           <div className="rfq-form-inline">
             <label>
@@ -90,6 +123,8 @@ export default function RFQEmpresas() {
             <thead>
               <tr>
                 <th>Empresa</th>
+                <th>CNPJ</th>
+                <th>Contato</th>
                 <th>Segmento</th>
                 <th>Rating</th>
                 <th>Lead Time</th>
@@ -100,6 +135,13 @@ export default function RFQEmpresas() {
               {companies.map((company) => (
                 <tr key={company.id}>
                   <td>{company.name}</td>
+                  <td>{company.cnpj ?? '-'}</td>
+                  <td>
+                    <div>
+                      <strong>{company.contactName ?? '-'}</strong>
+                      <p className="rfq-subtle-text">{company.email ?? '-'}</p>
+                    </div>
+                  </td>
                   <td>{company.segment}</td>
                   <td>{company.rating.toFixed(1)}</td>
                   <td>{company.leadTimeDays} dias</td>
