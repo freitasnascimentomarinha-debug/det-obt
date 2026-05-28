@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate, NavLink } from 'react-router-dom';
-import { LogOut, Home, Users, BarChart2, Shield, PlusCircle, Search, MessageSquare, ThumbsUp, Eye, Share2, Camera, CheckCircle, RotateCcw, Building2, Bell, MessageCircle, User } from 'lucide-react';
+import { LogOut, Home, Users, BarChart2, Shield, PlusCircle, Search, MessageSquare, ThumbsUp, Eye, Share2, Camera, CheckCircle, RotateCcw, Building2, Bell, MessageCircle, User, ClipboardList } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Usuario, Notificacao } from './types';
 
@@ -13,6 +13,11 @@ import Admin from './pages/Admin';
 import Empresas from './pages/Empresas';
 import Chat from './pages/Chat';
 import ProfileModal from './components/ProfileModal';
+import RFQLayout from './pages/rfq/RFQLayout';
+import RFQDashboard from './pages/rfq/RFQDashboard';
+import RFQEmpresas from './pages/rfq/RFQEmpresas';
+import RFQItens from './pages/rfq/RFQItens';
+import RFQFerramentas from './pages/rfq/RFQFerramentas';
 
 function NotificationBell({ user, notifications, setNotifications }: { user: Usuario, notifications: Notificacao[], setNotifications: React.Dispatch<React.SetStateAction<Notificacao[]>> }) {
   const [show, setShow] = useState(false);
@@ -214,6 +219,10 @@ export default function App() {
                     <MessageCircle className="w-4 h-4" />
                     <span>Chat</span>
                   </NavLink>
+                  <NavLink to="/rfq" className={({ isActive }) => `flex items-center gap-2 px-3 py-1 rounded-md transition-colors text-sm font-medium ${isActive ? 'bg-[#39FF14]/20 text-[#39FF14]' : 'text-[#818384] hover:bg-[#39FF14]/10 hover:text-[#39FF14]'}`}>
+                    <ClipboardList className="w-4 h-4" />
+                    <span>RFQ</span>
+                  </NavLink>
                   <NavLink to="/admin" className={({ isActive }) => `flex items-center gap-2 px-3 py-1 rounded-md transition-colors text-sm font-medium ${isActive ? 'bg-[#39FF14]/20 text-[#39FF14]' : 'text-[#818384] hover:bg-[#39FF14]/10 hover:text-[#39FF14]'}`}>
                     <Shield className="w-4 h-4" />
                     <span>Admin</span>
@@ -259,6 +268,12 @@ export default function App() {
             <Route path="/empresas" element={<Empresas user={user} />} />
             <Route path="/ranking" element={<Ranking />} />
             <Route path="/chat" element={<Chat user={user} />} />
+            <Route path="/rfq" element={<RFQLayout user={user} />}>
+              <Route index element={<RFQDashboard />} />
+              <Route path="empresas" element={<RFQEmpresas />} />
+              <Route path="itens" element={<RFQItens />} />
+              <Route path="ferramentas" element={<RFQFerramentas />} />
+            </Route>
             <Route path="/admin" element={<Admin user={user} />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
@@ -308,6 +323,10 @@ export default function App() {
             <NavLink to="/chat" className={({ isActive }) => `flex flex-col items-center gap-1 transition-colors ${isActive ? 'text-[#39FF14]' : 'text-[#818384] hover:text-[#39FF14]'}`}>
               <MessageCircle className="w-5 h-5" />
               <span className="text-[10px] font-bold">Chat</span>
+            </NavLink>
+            <NavLink to="/rfq" className={({ isActive }) => `flex flex-col items-center gap-1 transition-colors ${isActive ? 'text-[#39FF14]' : 'text-[#818384] hover:text-[#39FF14]'}`}>
+              <ClipboardList className="w-5 h-5" />
+              <span className="text-[10px] font-bold">RFQ</span>
             </NavLink>
             <NavLink to="/ranking" className={({ isActive }) => `flex flex-col items-center gap-1 transition-colors ${isActive ? 'text-[#39FF14]' : 'text-[#818384] hover:text-[#39FF14]'}`}>
               <BarChart2 className="w-5 h-5" />
