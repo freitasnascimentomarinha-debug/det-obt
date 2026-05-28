@@ -43,6 +43,10 @@ export interface RFQProcess {
   inputMode?: RFQInputMode;
   createdAt?: string;
   totalItems?: number;
+  closedAt?: string;
+  validityUntil?: string;
+  createdByUserId?: number;
+  winningSupplierCompanyId?: string;
 }
 
 export interface RFQProcessItem {
@@ -77,6 +81,7 @@ export interface RFQQuote {
   itemId: string;
   price: number;
   attachmentName?: string;
+  attachmentUrl?: string;
 }
 
 export interface RFQNotificationItem {
@@ -126,4 +131,26 @@ export interface RfqAiInsight {
   headline: string;
   summary: string;
   actions: string[];
+}
+
+export interface RFQBootstrapPayload {
+  schemaReady: boolean;
+  companies: RFQCompany[];
+  items: RFQItem[];
+  processes: RFQProcess[];
+  processItems: RFQProcessItem[];
+  invitations: RFQSupplierInvitation[];
+  quotes: RFQQuote[];
+  messages: RFQChatMessage[];
+  notifications: RFQNotificationItem[];
+  history: RFQHistoryRecord[];
+}
+
+export interface RFQSupplierPortalData {
+  invitation: RFQSupplierInvitation;
+  process: RFQProcess;
+  company: RFQCompany;
+  items: RFQProcessItem[];
+  quotes: RFQQuote[];
+  messages: RFQChatMessage[];
 }

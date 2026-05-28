@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { WebSocketServer, WebSocket } from "ws";
 import http from "http";
+import { registerRfqRoutes } from './rfq-server';
 
 dotenv.config();
 
@@ -1289,6 +1290,14 @@ export async function createApp(options: { serverless?: boolean } = {}) {
     await migrate('auditoria', 'auditoria');
 
     res.json(results);
+  });
+
+  registerRfqRoutes({
+    app,
+    supabase,
+    createNotification,
+    logAuditoria,
+    uploadBase64ToStorage
   });
 
   // Catch-all for unhandled API routes to prevent HTML response

@@ -4,18 +4,11 @@ import { Bot, Building2, ClipboardList, Gauge, History, ReceiptText, Send, Spark
 import { Usuario } from '../../types';
 import {
   answerRfqQuestion,
-  buildRfqAiSummary,
-  initialCompanies,
-  initialHistory,
-  initialInvitations,
-  initialItems,
-  initialMessages,
-  initialNotifications,
-  initialProcessItems,
-  initialProcesses,
-  initialQuotes
+  buildRfqAiSummary
 } from './data';
+import { createRFQCompany, createRFQItem, createRFQProcess, fetchRFQBootstrap } from './api';
 import {
+  RFQBootstrapPayload,
   RFQChatMessage,
   RFQCompany,
   RFQHistoryRecord,
@@ -45,6 +38,9 @@ export interface RFQContext {
   notifications: RFQNotificationItem[];
   history: RFQHistoryRecord[];
   messages: RFQChatMessage[];
+  schemaReady: boolean;
+  isLoading: boolean;
+  dataError: string | null;
   aiInsight: RfqAiInsight;
   aiPrompt: string;
   aiQuestion: string;
@@ -53,8 +49,9 @@ export interface RFQContext {
   setAiQuestion: (value: string) => void;
   refreshAiSummary: () => void;
   askAiQuestion: (value?: string) => void;
-  addCompany: (payload: Omit<RFQCompany, 'id' | 'lastRFQ'>) => string;
-  addItem: (payload: Omit<RFQItem, 'id'>) => void;
+  reloadData: () => Promise<void>;
+  addCompany: (payload: Omit<RFQCompany, 'id' | 'lastRFQ'>) => Promise<string>;
+  addItem: (payload: Omit<RFQItem, 'id'>) => Promise<void>;
   addProcess: (payload: {
     title: string;
     department: string;
@@ -70,7 +67,7 @@ export interface RFQContext {
       preferredSupplier: string;
       historicalReference: string;
     }>;
-  }) => string;
+  }) => Promise<string>;
 }
 
 const linkStyle = ({ isActive }: { isActive: boolean }) =>
@@ -80,59 +77,89 @@ export function useRFQContext() {
   return useOutletContext<RFQContext>();
 }
 
+function emptyBootstrap(): RFQBootstrapPayload {
+  return {
+    schemaReady: true,
+    companies: [],
+    items: [],
+    processes: [],
+    processItems: [],
+    invitations: [],
+    quotes: [],
+    messages: [],
+    notifications: [],
+    history: []
+  };
+}
+
 export default function RFQLayout({ user }: RFQLayoutProps) {
-  const [companies, setCompanies] = useState<RFQCompany[]>(initialCompanies);
-  const [items, setItems] = useState<RFQItem[]>(initialItems);
-  const [processes, setProcesses] = useState<RFQProcess[]>(initialProcesses);
-  const [processItems, setProcessItems] = useState<RFQProcessItem[]>(initialProcessItems);
-  const [invitations, setInvitations] = useState<RFQSupplierInvitation[]>(initialInvitations);
-  const [quotes] = useState<RFQQuote[]>(initialQuotes);
-  const [notifications, setNotifications] = useState<RFQNotificationItem[]>(initialNotifications);
-  const [history] = useState<RFQHistoryRecord[]>(initialHistory);
-  const [messages] = useState<RFQChatMessage[]>(initialMessages);
+  const [companies, setCompanies] = useState<RFQCompany[]>([]);
+  const [items, setItems] = useState<RFQItem[]>([]);
+  const [processes, setProcesses] = useState<RFQProcess[]>([]);
+  const [processItems, setProcessItems] = useState<RFQProcessItem[]>([]);
+  const [invitations, setInvitations] = useState<RFQSupplierInvitation[]>([]);
+  const [quotes, setQuotes] = useState<RFQQuote[]>([]);
+  const [notifications, setNotifications] = useState<RFQNotificationItem[]>([]);
+  const [history, setHistory] = useState<RFQHistoryRecord[]>([]);
+  const [messages, setMessages] = useState<RFQChatMessage[]>([]);
+  const [schemaReady, setSchemaReady] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [aiPrompt, setAiPrompt] = useState('Priorize riscos e oportunidades de economia.');
   const [aiQuestion, setAiQuestion] = useState('Quais fornecedores estão mais competitivos?');
-  const [aiInsight, setAiInsight] = useState<RfqAiInsight>(() =>
-    buildRfqAiSummary(initialProcesses, initialCompanies, initialInvitations, initialQuotes)
-  );
-  const [aiAnswer, setAiAnswer] = useState(() =>
-    answerRfqQuestion(
-      'Quais fornecedores estão mais competitivos?',
-      initialCompanies,
-      initialProcesses,
-      initialProcessItems,
-      initialInvitations,
-      initialQuotes
-    )
-  );
+  const [aiInsight, setAiInsight] = useState<RfqAiInsight>(() => buildRfqAiSummary([], [], [], []));
+  const [aiAnswer, setAiAnswer] = useState(() => answerRfqQuestion('Quais fornecedores estão mais competitivos?', [], [], [], [], []));
+
+  const applyBootstrap = (payload: RFQBootstrapPayload) => {
+    setCompanies(payload.companies);
+    setItems(payload.items);
+    setProcesses(payload.processes);
+    setProcessItems(payload.processItems);
+    setInvitations(payload.invitations);
+    setQuotes(payload.quotes);
+    setNotifications(payload.notifications);
+    setHistory(payload.history);
+    setMessages(payload.messages);
+    setSchemaReady(payload.schemaReady);
+  };
+
+  const reloadData = async () => {
+    setIsLoading(true);
+
+    try {
+      const payload = await fetchRFQBootstrap();
+      applyBootstrap(payload);
+      setDataError(
+        payload.schemaReady
+          ? null
+          : 'Persistência RFQ indisponível até a execução de supabase-rfq-schema.sql no Supabase.'
+      );
+    } catch (error: any) {
+      const fallback = emptyBootstrap();
+      applyBootstrap(fallback);
+      setDataError(error.message || 'Não foi possível carregar os dados do RFQ.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void reloadData();
+  }, []);
 
   useEffect(() => {
     setAiInsight(buildRfqAiSummary(processes, companies, invitations, quotes, aiPrompt));
   }, [aiPrompt, companies, invitations, processes, quotes]);
 
-  const addCompany = (payload: Omit<RFQCompany, 'id' | 'lastRFQ'>) => {
-    const companyId = `co-${Date.now()}`;
-
-    setCompanies((prev) => [
-      {
-        ...payload,
-        id: companyId,
-        lastRFQ: new Date().toISOString().slice(0, 10)
-      },
-      ...prev
-    ]);
-
-    return companyId;
+  const addCompany = async (payload: Omit<RFQCompany, 'id' | 'lastRFQ'>) => {
+    const company = await createRFQCompany(payload);
+    setCompanies((prev) => [company, ...prev]);
+    return company.id;
   };
 
-  const addItem = (payload: Omit<RFQItem, 'id'>) => {
-    setItems((prev) => [
-      {
-        ...payload,
-        id: `it-${Date.now()}`
-      },
-      ...prev
-    ]);
+  const addItem = async (payload: Omit<RFQItem, 'id'>) => {
+    const item = await createRFQItem(payload);
+    setItems((prev) => [item, ...prev]);
   };
 
   const refreshAiSummary = () => {
@@ -146,7 +173,7 @@ export default function RFQLayout({ user }: RFQLayoutProps) {
     );
   };
 
-  const addProcess = (payload: {
+  const addProcess = async (payload: {
     title: string;
     department: string;
     deadline: string;
@@ -162,78 +189,14 @@ export default function RFQLayout({ user }: RFQLayoutProps) {
       historicalReference: string;
     }>;
   }) => {
-    const processId = `rfq-${Date.now()}`;
-    const createdAt = new Date().toISOString();
-    const firstCompany = companies.find((item) => item.id === payload.supplierIds[0]);
-
-    const newProcess: RFQProcess = {
-      id: processId,
-      title: payload.title,
-      buyer: user.nome,
-      company: firstCompany?.name ?? 'Múltiplos fornecedores',
-      department: payload.department,
-      deadline: payload.deadline,
-      status: 'Open',
-      savingsPotential: Number((10 + payload.items.length * 1.4).toFixed(1)),
-      riskLevel: payload.supplierIds.length >= 3 ? 'Low' : 'Medium',
-      inputMode: payload.inputMode,
-      createdAt: createdAt.slice(0, 10),
-      totalItems: payload.items.length
-    };
-
-    const newProcessItems: RFQProcessItem[] = payload.items.map((item, index) => ({
-      id: `${processId}-item-${index + 1}`,
-      processId,
-      sku: item.sku,
-      description: item.description,
-      quantity: item.quantity,
-      unit: item.unit,
-      targetPrice: item.targetPrice,
-      preferredSupplier: item.preferredSupplier,
-      historicalReference: item.historicalReference
-    }));
-
-    const newInvitations: RFQSupplierInvitation[] = payload.supplierIds.map((companyId, index) => ({
-      id: `${processId}-inv-${index + 1}`,
-      processId,
-      companyId,
-      token: `${processId}-${companyId}`,
-      status: 'Sent',
-      quotedItems: 0,
-      sentAt: createdAt,
-      uniqueUrl: `/rfq/fornecedor/${processId}-${companyId}`
-    }));
-
-    const buyerNotification: RFQNotificationItem = {
-      id: `nt-${Date.now()}`,
-      processId,
-      title: 'Processo RFQ criado',
-      message: `${payload.title} foi aberto com ${payload.supplierIds.length} fornecedores e ${payload.items.length} itens.`,
-      createdAt: createdAt,
-      audience: 'Buyer',
-      type: 'NewProcess'
-    };
-
-    const supplierNotifications: RFQNotificationItem[] = newInvitations.map((invitation, index) => {
-      const company = companies.find((item) => item.id === invitation.companyId);
-
-      return {
-        id: `nt-${Date.now()}-${index}`,
-        processId,
-        title: 'Link único enviado ao fornecedor',
-        message: `${company?.name ?? 'Fornecedor'} recebeu acesso dedicado para enviar a proposta do processo ${payload.title}.`,
-        createdAt: createdAt,
-        audience: 'Supplier',
-        type: 'NewProcess'
-      };
+    const response = await createRFQProcess({
+      ...payload,
+      buyerUserId: Number(user.id),
+      buyerName: user.nome
     });
 
-    setProcesses((prev) => [newProcess, ...prev]);
-    setProcessItems((prev) => [...newProcessItems, ...prev]);
-    setInvitations((prev) => [...newInvitations, ...prev]);
-    setNotifications((prev) => [buyerNotification, ...supplierNotifications, ...prev]);
-
-    return processId;
+    applyBootstrap(response.bootstrap);
+    return response.processId;
   };
 
   const summaryCards = useMemo(() => {
@@ -267,6 +230,9 @@ export default function RFQLayout({ user }: RFQLayoutProps) {
     notifications,
     history,
     messages,
+    schemaReady,
+    isLoading,
+    dataError,
     aiInsight,
     aiPrompt,
     aiQuestion,
@@ -275,6 +241,7 @@ export default function RFQLayout({ user }: RFQLayoutProps) {
     setAiQuestion,
     refreshAiSummary,
     askAiQuestion,
+    reloadData,
     addCompany,
     addItem,
     addProcess
@@ -299,6 +266,22 @@ export default function RFQLayout({ user }: RFQLayoutProps) {
           </div>
         </div>
       </header>
+
+      {dataError && (
+        <section className="rfq-panel">
+          <div className="rfq-panel-title">
+            <h2>Status da integração RFQ</h2>
+            <span>{schemaReady ? 'Conectividade' : 'Schema pendente'}</span>
+          </div>
+          <p className="rfq-subtle-text">{dataError}</p>
+        </section>
+      )}
+
+      {isLoading && (
+        <section className="rfq-panel">
+          <p className="rfq-subtle-text">Carregando dados reais do RFQ...</p>
+        </section>
+      )}
 
       <div className="rfq-summary-grid">
         {summaryCards.map((card) => (

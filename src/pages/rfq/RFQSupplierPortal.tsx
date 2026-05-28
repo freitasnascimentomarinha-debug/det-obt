@@ -1,14 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Clock3, MessageSquareMore, Paperclip, SendHorizontal } from 'lucide-react';
 import { useParams } from 'react-router-dom';
-import {
-  initialCompanies,
-  initialInvitations,
-  initialMessages,
-  initialProcessItems,
-  initialProcesses,
-  initialQuotes
-} from './data';
+import { createRFQSupplierMessage, fetchRFQSupplierPortal, submitRFQSupplierProposal } from './api';
+import { RFQChatMessage, RFQCompany, RFQProcess, RFQProcessItem, RFQQuote, RFQSupplierInvitation } from './types';
 
 function getRemaining(deadline: string, now: number) {
   const diff = new Date(`${deadline}T23:59:59`).getTime() - now;
@@ -26,35 +20,65 @@ function getRemaining(deadline: string, now: number) {
 
 export default function RFQSupplierPortal() {
   const { token } = useParams();
-  const invitation = initialInvitations.find((item) => item.token === token);
-  const process = initialProcesses.find((item) => item.id === invitation?.processId);
-  const company = initialCompanies.find((item) => item.id === invitation?.companyId);
-  const scopedItems = initialProcessItems.filter((item) => item.processId === process?.id);
-  const existingQuotes = initialQuotes.filter(
-    (item) => item.processId === process?.id && item.companyId === company?.id
-  );
+  const [invitation, setInvitation] = useState<RFQSupplierInvitation | null>(null);
+  const [process, setProcess] = useState<RFQProcess | null>(null);
+  const [company, setCompany] = useState<RFQCompany | null>(null);
+  const [scopedItems, setScopedItems] = useState<RFQProcessItem[]>([]);
+  const [existingQuotes, setExistingQuotes] = useState<RFQQuote[]>([]);
+  const [messages, setMessages] = useState<RFQChatMessage[]>([]);
   const [now, setNow] = useState(Date.now());
-  const [attachmentName, setAttachmentName] = useState(existingQuotes[0]?.attachmentName ?? '');
+  const [attachmentName, setAttachmentName] = useState('');
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [chatInput, setChatInput] = useState('');
-  const [submittedAt, setSubmittedAt] = useState(invitation?.submittedAt ?? '');
-  const [prices, setPrices] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      scopedItems.map((item) => {
-        const quote = existingQuotes.find((entry) => entry.itemId === item.id);
-        return [item.id, quote ? quote.price.toString() : ''];
-      })
-    )
-  );
-  const [messages, setMessages] = useState(
-    initialMessages.filter(
-      (message) => message.processId === process?.id && message.companyId === company?.id
-    )
-  );
+  const [submittedAt, setSubmittedAt] = useState('');
+  const [prices, setPrices] = useState<Record<string, string>>({});
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    async function loadPortal() {
+      if (!token) {
+        setIsLoading(false);
+        setErrorMessage('Token do fornecedor não informado.');
+        return;
+      }
+
+      setIsLoading(true);
+      setErrorMessage('');
+
+      try {
+        const payload = await fetchRFQSupplierPortal(token);
+        setInvitation(payload.invitation);
+        setProcess(payload.process);
+        setCompany(payload.company);
+        setScopedItems(payload.items);
+        setExistingQuotes(payload.quotes);
+        setMessages(payload.messages);
+        setAttachmentName(payload.quotes[0]?.attachmentName || '');
+        setSubmittedAt(payload.invitation.submittedAt || '');
+        setPrices(
+          Object.fromEntries(
+            payload.items.map((item) => {
+              const quote = payload.quotes.find((entry) => entry.itemId === item.id);
+              return [item.id, quote ? quote.price.toString() : ''];
+            })
+          )
+        );
+      } catch (error: any) {
+        setErrorMessage(error.message || 'Não foi possível carregar o portal do fornecedor.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    void loadPortal();
+  }, [token]);
 
   const expired = process ? new Date(`${process.deadline}T23:59:59`).getTime() <= now : true;
   const quotedCount = useMemo(
@@ -62,45 +86,84 @@ export default function RFQSupplierPortal() {
     [prices]
   );
 
+  if (isLoading) {
+    return (
+      <main className="rfq-supplier-shell">
+        <section className="rfq-panel">
+          <p className="rfq-subtle-text">Carregando link exclusivo do fornecedor...</p>
+        </section>
+      </main>
+    );
+  }
+
   if (!invitation || !process || !company) {
     return (
       <main className="rfq-supplier-shell">
         <section className="rfq-panel">
           <h1>Link inválido ou expirado</h1>
           <p className="rfq-subtle-text">
-            Este acesso exclusivo do fornecedor não está disponível. Solicite um novo link ao comprador responsável.
+            {errorMessage || 'Este acesso exclusivo do fornecedor não está disponível. Solicite um novo link ao comprador responsável.'}
           </p>
         </section>
       </main>
     );
   }
 
-  const handleSubmitProposal = () => {
-    if (expired) {
+  const handleSubmitProposal = async () => {
+    if (expired || !token) {
       return;
     }
 
-    setSubmittedAt(new Date().toISOString());
+    const numericPrices = Object.fromEntries(
+      Object.entries(prices)
+        .map(([itemId, value]) => [itemId, Number(value)])
+        .filter(([, value]) => Number.isFinite(value) && value > 0)
+    );
+
+    if (Object.keys(numericPrices).length === 0) {
+      setErrorMessage('Informe pelo menos um valor antes de enviar a proposta.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      let attachmentBase64: string | undefined;
+      if (attachmentFile) {
+        attachmentBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('Falha ao ler o anexo selecionado.'));
+          reader.readAsDataURL(attachmentFile);
+        });
+      }
+
+      const response = await submitRFQSupplierProposal(token, {
+        prices: numericPrices,
+        attachmentName: attachmentName || undefined,
+        attachmentBase64
+      });
+      setSubmittedAt(response.submittedAt);
+    } catch (error: any) {
+      setErrorMessage(error.message || 'Erro ao enviar a proposta.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleSendMessage = () => {
-    if (!chatInput.trim()) {
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || !token) {
       return;
     }
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `local-${Date.now()}`,
-        processId: process.id,
-        companyId: company.id,
-        author: company.contactName ?? company.name,
-        side: 'Supplier',
-        message: chatInput.trim(),
-        createdAt: new Date().toISOString()
-      }
-    ]);
-    setChatInput('');
+    try {
+      const message = await createRFQSupplierMessage(token, chatInput.trim());
+      setMessages((prev) => [...prev, message]);
+      setChatInput('');
+    } catch (error: any) {
+      setErrorMessage(error.message || 'Erro ao enviar mensagem ao comprador.');
+    }
   };
 
   return (
@@ -125,6 +188,7 @@ export default function RFQSupplierPortal() {
             <h2>Preencher proposta</h2>
             <span>{quotedCount}/{scopedItems.length} itens cotados</span>
           </div>
+          {errorMessage && <p className="rfq-subtle-text">{errorMessage}</p>}
           <div className="rfq-price-grid">
             {scopedItems.map((item) => (
               <article key={item.id} className="rfq-price-card">
@@ -156,7 +220,11 @@ export default function RFQSupplierPortal() {
               <input
                 type="file"
                 disabled={expired}
-                onChange={(event) => setAttachmentName(event.target.files?.[0]?.name ?? '')}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  setAttachmentFile(file);
+                  setAttachmentName(file?.name ?? existingQuotes[0]?.attachmentName ?? '');
+                }}
               />
             </label>
             {attachmentName && (
@@ -165,9 +233,9 @@ export default function RFQSupplierPortal() {
                 {attachmentName}
               </div>
             )}
-            <button type="button" className="rfq-button" onClick={handleSubmitProposal} disabled={expired}>
+            <button type="button" className="rfq-button" onClick={() => void handleSubmitProposal()} disabled={expired || isSubmitting}>
               <SendHorizontal size={14} />
-              {submittedAt ? 'Atualizar proposta' : 'Enviar proposta'}
+              {isSubmitting ? 'Enviando...' : submittedAt ? 'Atualizar proposta' : 'Enviar proposta'}
             </button>
             {submittedAt && (
               <p className="rfq-subtle-text">
@@ -198,7 +266,7 @@ export default function RFQSupplierPortal() {
               placeholder="Escreva sua dúvida ou contraproposta"
               disabled={expired}
             />
-            <button type="button" onClick={handleSendMessage} disabled={expired}>
+            <button type="button" onClick={() => void handleSendMessage()} disabled={expired}>
               <SendHorizontal size={14} />
               Enviar
             </button>

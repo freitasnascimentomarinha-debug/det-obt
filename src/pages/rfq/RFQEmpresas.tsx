@@ -19,14 +19,14 @@ export default function RFQEmpresas() {
     [companies]
   );
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!name.trim() || !segment.trim() || !email.trim()) {
       return;
     }
 
-    addCompany({
+    await addCompany({
       name: name.trim(),
       cnpj: cnpj.trim(),
       email: email.trim(),

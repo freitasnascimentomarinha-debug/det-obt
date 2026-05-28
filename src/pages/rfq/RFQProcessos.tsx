@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { CalendarClock, FileSpreadsheet, Link2, PlusCircle, SendHorizontal } from 'lucide-react';
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { CalendarClock, FileSpreadsheet, Link2, PlusCircle, SendHorizontal, Upload } from 'lucide-react';
 import { getComparativeMap, getProcessMetrics } from './data';
+import { parseSpreadsheetFile } from './spreadsheet';
 import { useRFQContext } from './RFQLayout';
 import { RFQInputMode } from './types';
 
@@ -68,6 +69,8 @@ export default function RFQProcessos() {
     invitations,
     quotes,
     notifications,
+    isLoading,
+    dataError,
     addCompany,
     addProcess
   } = useRFQContext();
@@ -86,6 +89,9 @@ export default function RFQProcessos() {
   const [quickCompanyCnpj, setQuickCompanyCnpj] = useState('');
   const [selectedProcessId, setSelectedProcessId] = useState(processes[0]?.id ?? '');
   const [now, setNow] = useState(Date.now());
+  const [importFeedback, setImportFeedback] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -93,7 +99,7 @@ export default function RFQProcessos() {
   }, []);
 
   useEffect(() => {
-    if (!selectedProcessId && processes.length > 0) {
+    if ((!selectedProcessId || !processes.some((process) => process.id === selectedProcessId)) && processes.length > 0) {
       setSelectedProcessId(processes[0].id);
     }
   }, [processes, selectedProcessId]);
@@ -118,6 +124,9 @@ export default function RFQProcessos() {
     : { invited: 0, responded: 0, viewed: 0, pending: 0, responseRate: 0 };
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
+  const buildSupplierUrl = (uniqueUrl: string) =>
+    uniqueUrl.startsWith('http') ? uniqueUrl : `${origin}${uniqueUrl}`;
+
   const handleSupplierToggle = (companyId: string) => {
     setSelectedSupplierIds((prev) =>
       prev.includes(companyId)
@@ -126,12 +135,12 @@ export default function RFQProcessos() {
     );
   };
 
-  const handleQuickSupplier = () => {
+  const handleQuickSupplier = async () => {
     if (!quickCompanyName.trim() || !quickCompanyEmail.trim()) {
       return;
     }
 
-    const companyId = addCompany({
+    const companyId = await addCompany({
       name: quickCompanyName.trim(),
       cnpj: quickCompanyCnpj.trim(),
       email: quickCompanyEmail.trim(),
@@ -149,14 +158,36 @@ export default function RFQProcessos() {
     setQuickCompanyCnpj('');
   };
 
-  const handleSubmit = () => {
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setIsImporting(true);
+    setImportFeedback('');
+
+    try {
+      const parsed = await parseSpreadsheetFile(file);
+      setDraftLines(parsed);
+      setInputMode('Spreadsheet');
+      setImportFeedback(`${file.name} importado com sucesso.`);
+    } catch (error: any) {
+      setImportFeedback(error.message || 'Falha ao importar a planilha.');
+    } finally {
+      setIsImporting(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleSubmit = async () => {
     const parsedItems = parseDraftItems(draftLines, items);
 
     if (!title.trim() || parsedItems.length === 0 || selectedSupplierIds.length === 0) {
       return;
     }
 
-    const processId = addProcess({
+    const processId = await addProcess({
       title: title.trim(),
       department: department.trim(),
       deadline,
@@ -171,6 +202,7 @@ export default function RFQProcessos() {
     setInputMode('Manual');
     setDraftLines('');
     setSelectedSupplierIds([]);
+    setImportFeedback('');
   };
 
   return (
@@ -182,6 +214,8 @@ export default function RFQProcessos() {
         </div>
 
         <div className="rfq-form">
+          {dataError && <p className="rfq-subtle-text">{dataError}</p>}
+
           <div className="rfq-form-inline">
             <label>
               Título do processo
@@ -224,6 +258,22 @@ export default function RFQProcessos() {
               placeholder="SKU | Descrição | Quantidade | Unidade | Preço alvo"
             />
           </label>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.xls,.xlsx"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+
+          <div className="rfq-ai-input-wrap">
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isImporting || isLoading}>
+              <Upload size={14} />
+              {isImporting ? 'Importando planilha...' : 'Importar CSV/XLSX'}
+            </button>
+            {importFeedback && <p className="rfq-subtle-text">{importFeedback}</p>}
+          </div>
 
           <div className="rfq-grid-two">
             <section className="rfq-panel">
@@ -276,7 +326,7 @@ export default function RFQProcessos() {
             </section>
           </div>
 
-          <button type="button" className="rfq-button" onClick={handleSubmit}>
+          <button type="button" className="rfq-button" onClick={() => void handleSubmit()} disabled={isLoading || !companies.length}>
             {inputMode === 'Spreadsheet' ? <FileSpreadsheet size={14} /> : <CalendarClock size={14} />}
             Criar processo e gerar links únicos
           </button>
@@ -351,8 +401,8 @@ export default function RFQProcessos() {
                     <article key={invitation.id} className="rfq-link-card">
                       <strong>{companyMap.get(invitation.companyId)?.name ?? invitation.companyId}</strong>
                       <p>{companyMap.get(invitation.companyId)?.cnpj ?? '-'}</p>
-                      <a href={`${origin}${invitation.uniqueUrl}`} target="_blank" rel="noreferrer">
-                        {`${origin}${invitation.uniqueUrl}`}
+                      <a href={buildSupplierUrl(invitation.uniqueUrl)} target="_blank" rel="noreferrer">
+                        {buildSupplierUrl(invitation.uniqueUrl)}
                       </a>
                     </article>
                   ))}

@@ -18,14 +18,14 @@ export default function RFQItens() {
     [items]
   );
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!sku.trim() || !description.trim() || !preferredSupplier.trim()) {
       return;
     }
 
-    addItem({
+    await addItem({
       sku: sku.trim().toUpperCase(),
       description: description.trim(),
       category,
