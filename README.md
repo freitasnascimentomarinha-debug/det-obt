@@ -33,6 +33,10 @@ Este repositório já está preparado para Vercel com:
 ### 2. Configurar variáveis de ambiente (Project Settings -> Environment Variables)
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `GEMINI_API_KEY`
