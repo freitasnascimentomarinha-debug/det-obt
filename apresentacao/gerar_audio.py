@@ -3,7 +3,8 @@ Tudo gerado por síntese com numpy: sem samples externos, sem direitos autorais.
 import numpy as np, wave, sys
 
 SR = 44100
-DUR = 112.0
+K = 1.4  # fator de desaceleração (mesmo do vídeo)
+DUR = 120.0 * K
 N = int(SR * DUR)
 rng = np.random.default_rng(7)
 L = np.zeros(N, np.float32)
@@ -14,8 +15,8 @@ def mtof(m):
     return 440.0 * 2 ** ((m - 69) / 12)
 
 
-def put(sig, t0, pan=0.0, gain=1.0):
-    i = int(t0 * SR)
+def put(sig, t0, pan=0.0, gain=1.0, raw=False):
+    i = int((t0 if raw else t0 * K) * SR)
     if i >= N:
         return
     s = sig[: N - i] * gain
@@ -112,13 +113,13 @@ def pad(notes, dur, vol=0.12):
 
 # ---------- 0-12s: abertura (chuva + drone + coração) ----------
 rain = lp_noise(N, 3) * 0.05
-rain *= np.clip(np.interp(np.arange(N) / SR, [0, 2, 56, 62, 66], [0, 1, 1, 0.3, 0]), 0, 1)
+rain *= np.clip(np.interp(np.arange(N) / SR, [0, 2, 56 * K, 62 * K, 66 * K], [0, 1, 1, 0.3, 0]), 0, 1)
 L += rain
 R += np.roll(rain, 997)
-put(pad([33, 40, 45], 14, 0.55), 0)                    # A1 E2 A2
-put(pad([33, 40, 44, 45], 20, 0.5), 12)                # tensão
-put(pad([31, 38, 43, 46], 20, 0.55), 30)               # mais sombrio
-put(pad([30, 37, 42, 45, 49], 18, 0.6), 48)            # dissonante
+put(pad([33, 40, 45], 14 * K, 0.55), 0)                    # A1 E2 A2
+put(pad([33, 40, 44, 45], 20 * K, 0.5), 12)                # tensão
+put(pad([31, 38, 43, 46], 20 * K, 0.55), 30)               # mais sombrio
+put(pad([30, 37, 42, 45, 49], 18 * K, 0.6), 48)            # dissonante
 
 for t0 in np.arange(2, 12, 1.4):                        # batimento esparso
     put(heart(), t0, 0, 0.9)
@@ -163,14 +164,16 @@ rev = (np.sin(2 * np.pi * mtof(57) * tt) * (tt / 5) ** 3).astype(np.float32)
 put(rev, 63.0, 0, 0.25)
 put(riser(5.0, 300, 4000), 63.0, 0, 0.4)
 
+putr = lambda *a, **k: put(*a, raw=True, **k)
+
 # ---------- 68-100s: AÇÃO ----------
 BPM = 132
 q = 60 / BPM
-put(hit(4.0), 68.0, 0, 1.0)
-put(kick(0.5), 68.0, 0, 1.2)
+putr(hit(4.0), 68.0 * K, 0, 1.0)
+putr(kick(0.5), 68.0 * K, 0, 1.2)
 arp = [45, 52, 57, 60, 57, 52, 48, 55, 60, 64, 60, 55]  # Am / C
 chords = [[45, 52, 57], [41, 48, 53], [48, 55, 60], [43, 50, 55]]
-t_start, t_end = 68.0, 100.0
+t_start, t_end = 68.0 * K, 100.0 * K
 nbars = int((t_end - t_start) / (q * 4))
 for b in range(nbars):
     b0 = t_start + b * q * 4
@@ -180,36 +183,37 @@ for b in range(nbars):
         # baixo pulsante
         root = ch[0] - 12
         s = saw(mtof(root), q / 4 * 0.95, 12) * env(int(q / 4 * 0.95 * SR), 0.003, 0.05, 0.6, 0.03)
-        put(s, t0, 0, 0.22)
+        putr(s, t0, 0, 0.22)
         # arpejo (entra no compasso 3)
         if b >= 2:
             m = ch[st % 3] + 12 * (1 + (st // 6 % 2))
             a = saw(mtof(m), q / 4 * 1.4, 7) * env(int(q / 4 * 1.4 * SR), 0.002, 0.05, 0.4, 0.06)
-            put(a, t0, (-0.4 if st % 2 else 0.4), 0.10)
+            putr(a, t0, (-0.4 if st % 2 else 0.4), 0.10)
         # hats
         if st % 2 == 0 or b >= 4:
-            put(hat(), t0, 0.2, 0.5 if st % 4 else 0.8)
+            putr(hat(), t0, 0.2, 0.5 if st % 4 else 0.8)
     for beat in range(4):
-        put(kick(), b0 + beat * q, 0, 1.0)
-    put(snare(), b0 + q, 0, 0.7)
-    put(snare(), b0 + 3 * q, 0, 0.7)
+        putr(kick(), b0 + beat * q, 0, 1.0)
+    putr(snare(), b0 + q, 0, 0.7)
+    putr(snare(), b0 + 3 * q, 0, 0.7)
     if b >= 4:
-        put(snare(0.15), b0 + 3.5 * q, 0, 0.5)
+        putr(snare(0.15), b0 + 3.5 * q, 0, 0.5)
     # pad / stab heroico
-    put(pad([c + 12 for c in ch], q * 4, 0.35), b0)
+    putr(pad([c + 12 for c in ch], q * 4, 0.35), b0)
     # a cada 4 compassos, um crash de ruído
     if b % 4 == 0 and b > 0:
-        put(hit(2.0), b0, 0, 0.45)
+        putr(hit(2.0), b0, 0, 0.45)
 
 # ---------- 100-112s: resolução (acorde maior, esperança) ----------
-put(hit(5.0), 100.0, 0, 1.0)
-put(kick(0.6), 100.0, 0, 1.2)
-put(pad([45, 52, 57, 61, 64, 69], 12, 1.4), 100.0)
+putr(hit(5.0), 100.0 * K, 0, 1.0)
+putr(kick(0.6), 100.0 * K, 0, 1.2)
+putr(pad([45, 52, 57, 61, 64, 69], 20 * K, 1.4), 100.0 * K)
 for i, (t0, m) in enumerate([(101.0, 76), (102.2, 73), (103.4, 69), (105.0, 76), (106.5, 81)]):
+    t0 *= K
     tt = np.arange(int(3.5 * SR)) / SR
     b = (np.sin(2 * np.pi * mtof(m) * tt) + 0.35 * np.sin(2 * np.pi * mtof(m) * 2.0 * tt)) * np.exp(-tt * 1.4)
-    put(b.astype(np.float32), t0, -0.3 if i % 2 else 0.3, 0.28)
-put(hit(6.0), 109.0, 0, 0.5)
+    putr(b.astype(np.float32), t0, -0.3 if i % 2 else 0.3, 0.28)
+putr(hit(6.0), 109.0 * K, 0, 0.5)
 
 # ---------- reverb simples por convolução FFT ----------
 def reverb(x, secs=1.6, wet=0.22):

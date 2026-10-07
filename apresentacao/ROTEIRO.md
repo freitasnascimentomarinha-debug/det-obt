@@ -1,4 +1,4 @@
-# Detetive Obtenção — roteiro do vídeo (112 s)
+# Detetive Obtenção — roteiro do vídeo (168 s, com legendas — `legendas.srt`)
 
 | Tempo | Cena | Mensagem | Trilha |
 |---|---|---|---|

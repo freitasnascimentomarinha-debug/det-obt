@@ -6,7 +6,10 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from multiprocessing import Pool
 
-W, H, FPS, DUR = 1280, 720, 30, 112.0
+W, H, FPS = 1280, 720, 30
+K = 1.4            # fator de desaceleração: 1 s de roteiro = K s de vídeo
+DDUR = 120.0       # duração do roteiro (s) antes do fator
+DUR = DDUR * K
 BG = (4, 14, 8)
 GREEN = (57, 255, 20)
 DKG = (10, 36, 10)
@@ -143,6 +146,7 @@ def kicker(cv, s, t, a, b):
 
 
 def caption(cv, s, t, a, b, y=640, size=30, color=WHITE):
+    return  # substituído pela legenda narrada (SUBS)
     o = vis(t, a, b, 0.45, 0.45)
     cv.text(s, W / 2, y + (1 - o) * 12, "md", size, color, o, "mm")
 
@@ -246,7 +250,7 @@ def s3(cv, t):  # 30-48
         cv.rect(ex - 20, 541, ex + 20, 569, fill=WHITE, a=o, r=3)
         cv.draw().polygon([(ex - 20, 541), (ex, 558), (ex + 20, 541)], outline=BG + (int(255 * o),))
         cv.text("pedido de esclarecimento", 640, 510, "r", 18, GREY, o, "mm")
-        cv.text("FILA… semanas depois, nenhuma resposta.", 640, 622, "m", 18, RED, ramp(t, 45.6, 46.4) * o, "mm")
+        cv.text("FILA… semanas depois, nenhuma resposta.", 640, 598, "m", 18, RED, ramp(t, 45.6, 46.4) * o, "mm")
     caption(cv, "Pesquisar um preço virou caça ao tesouro.", t, 31.0, 36.0, 100 if False else 680, 26, GREY) if False else None
     caption(cv, "Horas perdidas até perceber: a descrição não basta.", t, 40.0, 43.0, 660, 26, WHITE)
     caption(cv, "Volta à Diretoria. E espera.", t, 43.5, 47.8, 668, 26, WHITE) if False else None
@@ -278,8 +282,8 @@ def s4(cv, t):  # 48-62
         sh = int(6 * max(0, 1 - (t - t0) * 6) * (1 if int(t * 60) % 2 else -1))
         cv.im.alpha_composite(lay, (int(x - lay.width / 2 + sh), int(y - lay.height / 2 - sh)))
 
-    stamp("ITEM EXCLUÍDO", 900, 370, -5, 55.4, RED)
-    stamp("“ACHADO” — ERRADO", 900, 540, 3, 57.8, AMBER)
+    stamp("ITEM EXCLUÍDO", 830, 370, -5, 55.4, RED)
+    stamp("“ACHADO” — ERRADO", 830, 520, 3, 57.8, AMBER)
     caption(cv, "Às vezes se resolve. Às vezes o item é excluído.", t, 50.0, 55.2, 660, 26)
     caption(cv, "Ou pior: é considerado achado… e só se descobre o erro meses depois.", t, 55.4, 61.7, 680, 24)
 
@@ -331,10 +335,11 @@ def s6(cv, t):  # 68-100
     fn(cv, lt, o)
     # progresso
     for i in range(7):
-        cv.rect(60 + i * 38, 680, 60 + i * 38 + 28, 685, fill=GREEN if i <= ci else BORDER, r=2)
+        cv.rect(60 + i * 38, 706, 60 + i * 38 + 28, 710, fill=GREEN if i <= ci else BORDER, r=2)
 
 
 def panel(cv, x0, y0, x1, y1, o):
+    y1 = min(y1, 625)
     cv.rect(x0, y0, x1, y1, fill=(10, 30, 14), outline=BORDER, a=o, r=12)
 
 
@@ -382,7 +387,7 @@ def fe3(cv, t, o):
     d = cv.draw()
     d.ellipse((990, 460, 1070, 540), outline=GREEN + (int(255 * ip),), width=6)
     d.rectangle((1070, 492, 1130, 508), fill=GREEN + (int(255 * ip),))
-    cv.text("foto nítida · nota fiscal · manual", 640, 625, "md", 20, GREY, o * ramp(t, 2.4, 3.0), "mm")
+    cv.text("foto nítida · nota fiscal · manual", 640, 600, "md", 20, GREY, o * ramp(t, 2.4, 3.0), "mm")
 
 
 def fe4(cv, t, o):
@@ -399,7 +404,7 @@ def fe4(cv, t, o):
 
 
 def fe5(cv, t, o):
-    panel(cv, 60, 330, 620, 670, o)
+    panel(cv, 60, 330, 620, 625, o)
     cv.text("DISCUSSÃO · 47 comentários", 85, 360, "m", 15, GREY, o, "lm")
     for i in range(11):
         w = 200 + (i * 53) % 260
@@ -407,7 +412,7 @@ def fe5(cv, t, o):
         cv.rect(85, 392 + i * 24 - sh * i * 3, 85 + w * (1 - 0.4 * sh), 404 + i * 24 - sh * i * 3, fill=(35, 90, 38), a=o * (1 - 0.6 * sh), r=3)
     arrow(cv, 640, 500, 720, GREEN, o * ramp(t, 1.2, 1.8))
     ap = o * ramp(t, 2.0, 2.6)
-    cv.rect(740, 330, 1220, 670, fill=(10, 30, 14), outline=GREEN, a=ap, r=12, w=3)
+    cv.rect(740, 330, 1220, 625, fill=(10, 30, 14), outline=GREEN, a=ap, r=12, w=3)
     cv.text("RESUMO DA IA", 765, 362, "b", 18, GREEN, ap, "lm")
     lines = ["• Válvula esfera 1/2”, rosca BSP", "• Aço inox, uso em resfriamento", "• Fabricantes A e B conferidos", "• Foto e manual anexados"]
     for i, ln in enumerate(lines):
@@ -461,21 +466,84 @@ def s7(cv, t):  # 100-112
         cv.text("PROTÓTIPO  ·  MARINHA DO BRASIL", W / 2, 500, "m", 18, GREY, ramp(lt, 8.5, 9.3), "mm")
 
 
-SCENES = [(0, 12, s1), (12, 30, s2), (30, 48, s3), (48, 62, s4), (62, 68, s5), (68, 100, s6), (100, 112, s7)]
+def s8(cv, t):  # 112-120  encerramento institucional
+    lt = t - 112
+    cv.glowcircle(W / 2, 330, 280, GREEN, 0.14 * ramp(lt, 0.3, 1.5), 70)
+    o = ramp(lt, 0.4, 1.4)
+    cv.text("CENTRO DE OPERAÇÕES\nDO ABASTECIMENTO", W / 2, 320 + (1 - o) * 14, "k", 54, WHITE, o, "mm", glow=5, spacing=10)
+    cv.rect(W / 2 - 90, 405, W / 2 + 90, 407, fill=GREEN, a=ramp(lt, 1.4, 2.2), r=1)
+    cv.text("A qualquer problema, há esforço em busca de soluções", W / 2, 440, "r", 20, GREY, ramp(lt, 2.0, 3.0), "mm")
+
+
+SUBS = [
+    (0.8, 4.0, "Terça-feira, 15h42. Na Gerência de Obtenção, mais um sobressalente para comprar."),
+    (4.2, 8.0, "A descrição tem uma linha só: sem diâmetro, sem fabricante, sem referência, sem foto."),
+    (8.2, 11.9, "E não é um caso isolado: são milhares de itens assim."),
+    (12.4, 16.0, "Tudo começa nos navios, que enviam suas demandas de sobressalentes."),
+    (16.2, 20.5, "A Diretoria, especialista no material, cataloga cada item para que possa ser comprado."),
+    (20.8, 25.0, "Mas são milhares de itens, cada um com especificações detalhadas e diferentes."),
+    (25.2, 29.8, "Manter cada descrição atualizada e enriquecida é, na prática, impossível."),
+    (30.4, 34.0, "Na ponta, o analista da obtenção sai atrás de preços e começa pelo comércio."),
+    (34.2, 38.0, "“Não conheço.” “Tenho 20 itens que podem ser esse.” Sempre falta informação."),
+    (38.2, 42.5, "Horas depois, ele percebe: a descrição simplesmente não basta."),
+    (42.8, 47.8, "Volta à Diretoria com a dúvida e entra na fila de um órgão sobrecarregado."),
+    (48.4, 52.0, "Os dias viram semanas, as semanas viram meses, e a compra segue parada."),
+    (52.2, 56.5, "Às vezes o problema se resolve. Às vezes o item é simplesmente excluído."),
+    (56.8, 61.8, "Ou pior: é dado como achado, e só meses depois se descobre o erro."),
+    (62.6, 65.4, "E se a memória não se perdesse?"),
+    (65.6, 67.6, "E se cada esclarecimento ficasse guardado para todos?"),
+    (68.4, 71.9, "Esta é a ideia do Detetive Obtenção: um catálogo dinâmico, feito pela comunidade."),
+    (72.2, 75.9, "Cada esclarecimento vira memória permanente, ligada ao item."),
+    (76.2, 79.9, "Cada chamado identifica o item, o autor e o meio operacional a que pertence."),
+    (80.2, 83.9, "Quem entende do material responde rápido: por áudio, texto ou imagem."),
+    (84.2, 87.9, "Fornecedores são indicados por item e validados pela própria comunidade."),
+    (88.2, 91.9, "E a inteligência artificial resume discussões longas no que realmente importa."),
+    (92.2, 95.9, "Quem contribui pontua e é reconhecido, e pode ser escolhido para funções-chave."),
+    (96.2, 99.9, "Tudo sob a supervisão do gerenciador, de forma rastreável e atemporal."),
+    (100.4, 105.4, "Menos tempo burocrático. Menos itens com problema na pesquisa."),
+    (105.9, 111.6, "Aproximando quem entende do item de quem precisa comprá-lo."),
+]
+
+
+def subtitle(cv, t):
+    import textwrap
+    for a, b, s in SUBS:
+        if a <= t <= b:
+            o = min(1.0, (t - a) / (0.25 / K), (b - t) / (0.25 / K))
+            lines = textwrap.wrap(s, 72)
+            txt = "\n".join(lines)
+            h = 24 + 36 * len(lines)
+            y0 = 700 - h
+            cv.rect(W / 2 - 580, y0, W / 2 + 580, 700, fill=(0, 0, 0), a=0.62 * o, r=10, w=0)
+            cv.text(txt, W / 2, y0 + h / 2, "md", 27, WHITE, o, "mm", spacing=8)
+            return
+
+
+def srt(path):
+    def f(x):
+        x *= K
+        return "%02d:%02d:%02d,%03d" % (x // 3600, x % 3600 // 60, x % 60, int(x % 1 * 1000))
+    with open(path, "w", encoding="utf-8") as fh:
+        for i, (a, b, s) in enumerate(SUBS, 1):
+            fh.write("%d\n%s --> %s\n%s\n\n" % (i, f(a), f(b), s))
+
+
+SCENES = [(0, 12, s1), (12, 30, s2), (30, 48, s3), (48, 62, s4), (62, 68, s5), (68, 100, s6), (100, 112, s7), (112, 120, s8)]
 
 
 def render(fi):
-    t = fi / FPS
+    t = fi / FPS / K
     cv = Cv()
     for a, b, fn in SCENES:
         if a <= t < b:
             fn(cv, t)
             fade = min(1.0, (t - a) / 0.35) if a not in (68, 0) else 1.0
-            fade_out = min(1.0, (b - t) / 0.3) if b not in (68, 112, 100) else 1.0
+            fade_out = min(1.0, (b - t) / 0.3) if b not in (68, 100) else 1.0
             cv_alpha = min(fade, fade_out)
             break
     else:
         cv_alpha = 1.0
+    subtitle(cv, t)
     im = np.asarray(cv.im.convert("RGB"), dtype=np.float32)
     # pós: tremor / glitch em transições e tensão
     seed = np.random.default_rng(fi)
@@ -497,6 +565,7 @@ def render(fi):
 
 
 def main():
+    srt(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'legendas.srt'))
     if len(sys.argv) > 3:
         os.makedirs("previa", exist_ok=True)
         for tt in sys.argv[3:]:
