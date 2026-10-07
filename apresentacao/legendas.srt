@@ -55,50 +55,42 @@ Os dias viram semanas, as semanas viram meses, e a compra segue parada.
 Ou pior: é dado como achado, e só meses depois se descobre o erro.
 
 15
-00:01:27,640 --> 00:01:31,560
-E se a memória não se perdesse?
-
-16
-00:01:31,839 --> 00:01:34,639
-E se cada esclarecimento ficasse guardado para todos?
-
-17
-00:01:35,760 --> 00:01:40,659
+00:02:00,360 --> 00:02:05,259
 Esta é a ideia do Detetive Obtenção: um catálogo dinâmico, feito pela comunidade.
 
-18
-00:01:41,079 --> 00:01:46,260
+16
+00:02:05,680 --> 00:02:10,860
 Cada esclarecimento vira memória permanente, ligada ao item.
 
-19
-00:01:46,679 --> 00:01:51,859
+17
+00:02:11,280 --> 00:02:16,460
 Cada chamado identifica o item, o autor e o meio operacional a que pertence.
 
-20
-00:01:52,280 --> 00:01:57,459
+18
+00:02:16,879 --> 00:02:22,060
 Quem entende do material responde rápido: por áudio, texto ou imagem.
 
-21
-00:01:57,879 --> 00:02:03,060
+19
+00:02:22,479 --> 00:02:27,659
 Fornecedores são indicados por item e validados pela própria comunidade.
 
-22
-00:02:03,479 --> 00:02:08,659
+20
+00:02:28,079 --> 00:02:33,259
 E a inteligência artificial resume discussões longas no que realmente importa.
 
-23
-00:02:09,079 --> 00:02:14,259
+21
+00:02:33,679 --> 00:02:38,859
 Quem contribui pontua e é reconhecido, e pode ser escolhido para funções-chave.
 
-24
-00:02:14,680 --> 00:02:19,859
+22
+00:02:39,280 --> 00:02:44,459
 Tudo sob a supervisão do gerenciador, de forma rastreável e atemporal.
 
-25
-00:02:20,560 --> 00:02:27,560
+23
+00:02:45,159 --> 00:02:52,159
 Menos tempo burocrático. Menos itens com problema na pesquisa.
 
-26
-00:02:28,259 --> 00:02:36,239
+24
+00:02:52,859 --> 00:03:00,839
 Aproximando quem entende do item de quem precisa comprá-lo.
 

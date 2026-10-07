@@ -4,7 +4,9 @@ import numpy as np, wave, sys
 
 SR = 44100
 K = 1.4  # fator de desaceleração (mesmo do vídeo)
-DUR = 120.0 * K
+QLEN = 33.0
+EX = QLEN - 6 * K   # tempo extra das perguntas (igual ao vídeo)
+DUR = 120.0 * K + EX
 N = int(SR * DUR)
 rng = np.random.default_rng(7)
 L = np.zeros(N, np.float32)
@@ -16,7 +18,7 @@ def mtof(m):
 
 
 def put(sig, t0, pan=0.0, gain=1.0, raw=False):
-    i = int((t0 if raw else t0 * K) * SR)
+    i = int(((t0 + EX) if raw else t0 * K) * SR)
     if i >= N:
         return
     s = sig[: N - i] * gain
@@ -113,7 +115,7 @@ def pad(notes, dur, vol=0.12):
 
 # ---------- 0-12s: abertura (chuva + drone + coração) ----------
 rain = lp_noise(N, 3) * 0.05
-rain *= np.clip(np.interp(np.arange(N) / SR, [0, 2, 56 * K, 62 * K, 66 * K], [0, 1, 1, 0.3, 0]), 0, 1)
+rain *= np.clip(np.interp(np.arange(N) / SR, [0, 2, 56 * K, 62 * K, 62 * K + QLEN], [0, 1, 1, 0.3, 0]), 0, 1)
 L += rain
 R += np.roll(rain, 997)
 put(pad([33, 40, 45], 14 * K, 0.55), 0)                    # A1 E2 A2
@@ -156,15 +158,24 @@ put(hit(), 48.0, 0, 0.85)
 put(riser(13), 35.0, 0, 0.0)  # (reservado)
 put(riser(6), 56.0, 0, 0.35)
 
-# ---------- 62-68s: respiro / vácuo ----------
-for t0 in (62.6, 63.8, 65.4):
-    put(heart(), t0, 0, 1.0)
-tt = np.arange(int(5 * SR)) / SR
-rev = (np.sin(2 * np.pi * mtof(57) * tt) * (tt / 5) ** 3).astype(np.float32)
-put(rev, 63.0, 0, 0.25)
-put(riser(5.0, 300, 4000), 63.0, 0, 0.4)
-
+# ---------- 62-68s: sequência de perguntas (QLEN s): vácuo que se enche de tensão ----------
+S0 = 62 * K
 putr = lambda *a, **k: put(*a, raw=True, **k)
+RAWS = lambda t: t - EX            # inverte o deslocamento para posicionar em tempo absoluto
+putabs = lambda sig, t, pan=0.0, gain=1.0: put(sig, RAWS(t), pan, gain, raw=True)
+putabs(pad([30, 37, 42, 45, 49], QLEN + 2, 0.5), S0)
+t0, gap = S0 + 1.0, 1.15
+while t0 < S0 + QLEN - 1.2:
+    putabs(heart(), t0, 0, 1.0)
+    putabs(heart(), t0 + 0.22, 0, 0.6)
+    t0 += gap
+    gap = max(0.42, gap * 0.955)
+for t0 in np.arange(S0 + 12, S0 + QLEN - 1.5, 0.5):
+    putabs(tick(f=1500), t0, 0.4, 0.18)
+for a_ in (1.2, 3.9, 8.1, 11.6, 18.5, 21.6, 25.7):      # toque grave em cada pergunta
+    tt = np.arange(int(2.0 * SR)) / SR
+    putabs((np.sin(2 * np.pi * 55 * tt) * np.exp(-tt * 3)).astype(np.float32), S0 + a_, 0, 0.35)
+putabs(riser(QLEN - 1.5, 150, 3800), S0 + 0.5, 0, 0.35)
 
 # ---------- 68-100s: AÇÃO ----------
 BPM = 132

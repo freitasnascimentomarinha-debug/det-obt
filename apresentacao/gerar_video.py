@@ -9,7 +9,7 @@ from multiprocessing import Pool
 W, H, FPS = 1280, 720, 30
 K = 1.4            # fator de desaceleração: 1 s de roteiro = K s de vídeo
 DDUR = 120.0       # duração do roteiro (s) antes do fator
-DUR = DDUR * K
+DUR = DDUR * K + 24.6   # + EX (tempo extra das perguntas; ver QLEN/EX)
 BG = (4, 14, 8)
 GREEN = (57, 255, 20)
 DKG = (10, 36, 10)
@@ -288,14 +288,51 @@ def s4(cv, t):  # 48-62
     caption(cv, "Ou pior: é considerado achado… e só se descobre o erro meses depois.", t, 55.4, 61.7, 680, 24)
 
 
-def s5(cv, t):  # 62-68
-    o1 = vis(t, 62.8, 65.6, 0.8, 0.5)
-    cv.text("E se a memória\nnão se perdesse?", W / 2, 330, "x", 62, WHITE, o1, "mm", glow=6)
-    cv.text("E se cada esclarecimento ficasse guardado para sempre?", W / 2, 440, "md", 26, GREEN, vis(t, 65.0, 67.8, 0.6, 0.4), "mm")
-    if t > 66.8:
-        f = ramp(t, 66.8, 68.0)
-        ov = Image.new("RGBA", (W, H), (255, 255, 255, int(255 * f)))
-        cv.im.alpha_composite(ov)
+QLEN = 33.0                      # duração real (s) da sequência de perguntas
+EX = QLEN - 6 * K                # tempo extra inserido no vídeo por causa dela
+QUEST = [  # (início, fim, texto, cor) em segundos reais dentro da cena
+    (1.2, 3.8, "O que fazer?", WHITE),
+    (3.9, 8.0, "Jogar o problema\npara a Diretoria?", AMBER),
+    (8.1, 11.5, "E se encurtássemos\nos laços?", WHITE),
+    (11.6, 18.4, "E se pudéssemos falar com quem entende,\nconhece e vive o item diariamente?", WHITE),
+    (18.5, 21.5, "E se houver mais de um?", WHITE),
+    (21.6, 25.6, "E se pudéssemos reuni-los\nem um só lugar?", WHITE),
+    (25.7, 32.0, "E se as informações valiosas que possuem\ntivessem valor permanente\ne fácil acesso e consulta?", GREEN),
+]
+
+
+def s5(cv, t):  # 62-68 (roteiro) -> QLEN s reais
+    tr = (t - 62) / 6 * QLEN
+    for k, (a, b, s, c) in enumerate(QUEST):
+        o = vis(tr, a, b, 0.5, 0.5)
+        if o <= 0:
+            continue
+        cv.text(s, W / 2, 300 + (1 - o) * 14, "x", 50 if len(s) < 60 else 42, c, o, "mm", glow=6, spacing=12)
+        ly = 470
+        d = cv.draw()
+        if k == 2:      # laços se aproximando
+            g = 360 * (1 - ramp(tr, a, b - 1))
+            for x in (W / 2 - 40 - g / 2, W / 2 + 40 + g / 2):
+                cv.glowcircle(x, ly, 20, GREEN, 0.5 * o, 12)
+                d.ellipse((x - 14, ly - 14, x + 14, ly + 14), fill=GREEN + (int(255 * o),))
+            d.line((W / 2 - 40 - g / 2, ly, W / 2 + 40 + g / 2, ly), fill=GREEN + (int(255 * o),), width=3)
+        elif k in (3, 4):   # quem entende / mais de um
+            n = 1 if k == 3 else 3
+            for q in range(n):
+                person(cv, W / 2 + (q - (n - 1) / 2) * 150, ly + 10, 0.55, GREEN, o * ramp(tr, a + 0.3 + q * 0.5, a + 0.9 + q * 0.5))
+        elif k == 5:    # reunir em um só lugar
+            u = ramp(tr, a + 0.5, b - 0.8)
+            for q in range(5):
+                x = W / 2 + (q - 2) * 170 * (1 - u)
+                person(cv, x, ly + 10, 0.45, GREEN, o)
+            cv.rect(W / 2 - 60, ly + 70, W / 2 + 60, ly + 74, fill=GREEN, a=o * u, r=2)
+        elif k == 6:    # valor permanente
+            for q in range(4):
+                cv.rect(W / 2 - 150 + q * 80, ly - 20 + (3 - q) * 0, W / 2 - 100 + q * 80, ly + 40, fill=(30, 110, 30), outline=GREEN,
+                        a=o * ramp(tr, a + 0.6 + q * 0.5, a + 1.1 + q * 0.5), r=6)
+    f = ramp(tr, QLEN - 1.6, QLEN - 0.1)
+    if f > 0:
+        cv.im.alpha_composite(Image.new("RGBA", (W, H), (255, 255, 255, int(255 * f))))
 
 
 def logo(cv, x, y, s, a):
@@ -490,8 +527,6 @@ SUBS = [
     (48.4, 52.0, "Os dias viram semanas, as semanas viram meses, e a compra segue parada."),
     (52.2, 56.5, "Às vezes o problema se resolve. Às vezes o item é simplesmente excluído."),
     (56.8, 61.8, "Ou pior: é dado como achado, e só meses depois se descobre o erro."),
-    (62.6, 65.4, "E se a memória não se perdesse?"),
-    (65.6, 67.6, "E se cada esclarecimento ficasse guardado para todos?"),
     (68.4, 71.9, "Esta é a ideia do Detetive Obtenção: um catálogo dinâmico, feito pela comunidade."),
     (72.2, 75.9, "Cada esclarecimento vira memória permanente, ligada ao item."),
     (76.2, 79.9, "Cada chamado identifica o item, o autor e o meio operacional a que pertence."),
@@ -521,7 +556,7 @@ def subtitle(cv, t):
 
 def srt(path):
     def f(x):
-        x *= K
+        x = x * K + (EX if x >= 68 else 0)
         return "%02d:%02d:%02d,%03d" % (x // 3600, x % 3600 // 60, x % 60, int(x % 1 * 1000))
     with open(path, "w", encoding="utf-8") as fh:
         for i, (a, b, s) in enumerate(SUBS, 1):
@@ -532,7 +567,14 @@ SCENES = [(0, 12, s1), (12, 30, s2), (30, 48, s3), (48, 62, s4), (62, 68, s5), (
 
 
 def render(fi):
-    t = fi / FPS / K
+    tr = fi / FPS
+    s0 = 62 * K
+    if tr < s0:
+        t = tr / K
+    elif tr < s0 + QLEN:
+        t = 62 + (tr - s0) / QLEN * 6
+    else:
+        t = 68 + (tr - s0 - QLEN) / K
     cv = Cv()
     for a, b, fn in SCENES:
         if a <= t < b:
